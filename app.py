@@ -3,11 +3,11 @@
 Flask web application for converting images to ASCII art.
 """
 
-from flask import Flask, render_template, request, jsonify
+from flask import Flask, render_template, request, jsonify, send_from_directory
 import os
 from generate_ascii import image_to_ascii
 
-app = Flask(__name__)
+app = Flask(__name__, static_folder='static', static_url_path='/static')
 app.config['UPLOAD_FOLDER'] = 'uploads'
 app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16MB max file size
 app.config['ALLOWED_EXTENSIONS'] = {'png', 'jpg', 'jpeg', 'gif', 'bmp', 'webp', 'svg'}
@@ -21,6 +21,14 @@ def allowed_file(filename):
 @app.route('/')
 def index():
     return render_template('index.html')
+
+@app.route('/favicon.png')
+def favicon():
+    return send_from_directory(app.static_folder, 'favicon.png', mimetype='image/png')
+
+@app.route('/logo.png')
+def logo():
+    return send_from_directory(app.static_folder, 'logo.png', mimetype='image/png')
 
 @app.route('/convert', methods=['POST'])
 def convert():

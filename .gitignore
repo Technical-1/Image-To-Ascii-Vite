@@ -31,11 +31,14 @@ instance/
 uploads/
 *.jpg
 *.jpeg
-*.png
 *.gif
 *.bmp
 *.webp
 *.svg
+
+# Allow logo and favicon
+!static/logo.png
+!static/favicon.png
 
 # IDE
 .vscode/
