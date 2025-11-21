@@ -23,6 +23,26 @@ header {
     margin-bottom: 30px;
 }
 
+.header-content {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+    flex-wrap: wrap;
+}
+
+.header-logo {
+    height: 60px;
+    width: auto;
+    max-width: 200px;
+    object-fit: contain;
+}
+
+.header-text {
+    flex: 1;
+    min-width: 0;
+}
+
 header h1 {
     font-size: 2.5em;
     margin-bottom: 10px;
@@ -32,6 +52,21 @@ header h1 {
 header p {
     font-size: 1.1em;
     opacity: 0.9;
+}
+
+@media (max-width: 768px) {
+    .header-content {
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .header-logo {
+        height: 50px;
+    }
+    
+    header h1 {
+        font-size: 2em;
+    }
 }
 
 .main-content {
@@ -210,7 +245,8 @@ header p {
     gap: 15px;
     margin-top: 15px;
     width: 100%;
-    overflow: hidden;
+    overflow: visible;
+    padding: 2px;
 }
 
 .checkbox-card {
@@ -234,6 +270,8 @@ header p {
     background: #f8f9ff;
     transform: translateY(-2px);
     box-shadow: 0 4px 12px rgba(102, 126, 234, 0.15);
+    z-index: 1;
+    position: relative;
 }
 
 .checkbox-card input[type="checkbox"] {

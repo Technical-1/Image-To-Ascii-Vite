@@ -4,13 +4,19 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Image to ASCII Converter</title>
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
 <body>
     <div class="container">
         <header>
-            <h1>🖼️ Image to ASCII Converter</h1>
-            <p>Upload an image and convert it to ASCII art with customizable settings</p>
+            <div class="header-content">
+                <img src="{{ url_for('static', filename='logo.png') }}" alt="Image to ASCII Converter Logo" class="header-logo">
+                <div class="header-text">
+                    <h1>Image to ASCII Converter</h1>
+                    <p>Upload an image and convert it to ASCII art with customizable settings</p>
+                </div>
+            </div>
         </header>
 
         <div class="main-content">
