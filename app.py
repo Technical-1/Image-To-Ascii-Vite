@@ -3,7 +3,7 @@
 Flask web application for converting images to ASCII art.
 """
 
-from flask import Flask, render_template, request, jsonify, send_from_directory
+from flask import Flask, render_template, request, jsonify, send_from_directory, make_response
 import os
 from generate_ascii import image_to_ascii
 
@@ -24,11 +24,15 @@ def index():
 
 @app.route('/favicon.png')
 def favicon_png():
-    return send_from_directory(app.static_folder, 'favicon.png', mimetype='image/png')
+    response = make_response(send_from_directory(app.static_folder, 'favicon.png', mimetype='image/png'))
+    response.headers['Cache-Control'] = 'public, max-age=31536000'
+    return response
 
 @app.route('/favicon.ico')
 def favicon_ico():
-    return send_from_directory(app.static_folder, 'favicon.png', mimetype='image/png')
+    response = make_response(send_from_directory(app.static_folder, 'favicon.png', mimetype='image/png'))
+    response.headers['Cache-Control'] = 'public, max-age=31536000'
+    return response
 
 @app.route('/logo.png')
 def logo():
