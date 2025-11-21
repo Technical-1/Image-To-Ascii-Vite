@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image to ASCII Converter</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🖼️ Image to ASCII Converter</h1>
+            <p>Upload an image and convert it to ASCII art with customizable settings</p>
+        </header>
+
+        <div class="main-content">
+            <div class="controls-section">
+                <div class="upload-section">
+                    <label for="imageInput" class="upload-label">
+                        <span class="upload-icon">📁</span>
+                        <span class="upload-text">Choose an image</span>
+                        <input type="file" id="imageInput" accept="image/*" hidden>
+                    </label>
+                    <div id="imagePreview" class="image-preview"></div>
+                </div>
+
+                <div class="controls-grid">
+                    <div class="control-group">
+                        <label for="widthSlider">Width (characters)</label>
+                        <div class="slider-with-input">
+                            <input type="range" id="widthSlider" min="10" max="200" value="50" class="slider">
+                            <input type="number" id="widthInput" min="10" max="200" value="50" class="number-input">
+                        </div>
+                    </div>
+
+                    <div class="control-group">
+                        <label for="heightSlider">Height (characters)</label>
+                        <div class="slider-with-input">
+                            <input type="range" id="heightSlider" min="10" max="200" value="30" class="slider">
+                            <input type="number" id="heightInput" min="10" max="200" value="30" class="number-input">
+                        </div>
+                    </div>
+
+                    <div class="control-group full-width">
+                        <label>Character Sets:</label>
+                        <div class="char-sets">
+                            <label class="checkbox-card">
+                                <input type="checkbox" class="char-checkbox" value="@%#*+=-:. " checked>
+                                <div class="checkbox-content">
+                                    <div class="checkbox-title">Standard</div>
+                                    <div class="checkbox-chars">@%#*+=-:. </div>
+                                </div>
+                            </label>
+                            <label class="checkbox-card">
+                                <input type="checkbox" class="char-checkbox" value="$@B%8&WM#*oahkbdpqwmZO0QLCJUYXzcvunxrjft/\|()1{}[]?-_+~<>i!lI;:,\"^`'. ">
+                                <div class="checkbox-content">
+                                    <div class="checkbox-title">Extended</div>
+                                    <div class="checkbox-chars">Full ASCII</div>
+                                </div>
+                            </label>
+                            <label class="checkbox-card">
+                                <input type="checkbox" class="char-checkbox" value=" .:-=+*#%@">
+                                <div class="checkbox-content">
+                                    <div class="checkbox-title">Simple</div>
+                                    <div class="checkbox-chars"> .:-=+*#%@</div>
+                                </div>
+                            </label>
+                            <label class="checkbox-card">
+                                <input type="checkbox" class="char-checkbox" value="█▓▒░ ">
+                                <div class="checkbox-content">
+                                    <div class="checkbox-title">Blocks</div>
+                                    <div class="checkbox-chars">█▓▒░ </div>
+                                </div>
+                            </label>
+                            <label class="checkbox-card">
+                                <input type="checkbox" class="char-checkbox" value=" .'`^\",:;Il!i><~+_-?][}{1)(|\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$">
+                                <div class="checkbox-content">
+                                    <div class="checkbox-title">Detailed</div>
+                                    <div class="checkbox-chars">Long character set</div>
+                                </div>
+                            </label>
+                        </div>
+                    </div>
+
+                    <div class="control-group full-width">
+                        <label for="customChars">Custom Characters:</label>
+                        <input type="text" id="customChars" placeholder="Enter custom character set" class="custom-input">
+                        <small>Leave empty to use selected character sets</small>
+                    </div>
+                </div>
+            </div>
+
+            <div class="preview-section">
+                <h2>ASCII Preview</h2>
+                <div id="asciiPreview" class="ascii-preview">
+                    <p class="placeholder">Upload an image to see the ASCII art preview</p>
+                </div>
+                <div class="actions">
+                    <button id="copyButton" class="btn btn-primary" disabled>Copy ASCII</button>
+                    <button id="downloadButton" class="btn btn-secondary" disabled>Download as .txt</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
+
