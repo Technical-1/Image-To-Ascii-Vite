@@ -2,6 +2,8 @@
 
 A web-based tool for converting images to ASCII art with a beautiful, interactive UI. Upload any image and customize the output with real-time preview.
 
+🌐 **Live Demo**: [https://image-to-ascii-erfs.onrender.com](https://image-to-ascii-erfs.onrender.com)
+
 ## Features
 
 - 🖼️ **Universal Image Support**: Works with PNG, JPG, JPEG, GIF, BMP, WEBP, and SVG files
@@ -20,7 +22,11 @@ pip install -r requirements.txt
 
 ## Usage
 
-### Web Interface (Recommended)
+### Web Interface
+
+**Try it online**: [https://image-to-ascii-erfs.onrender.com](https://image-to-ascii-erfs.onrender.com)
+
+Or run locally:
 
 1. Start the Flask server:
 ```bash
