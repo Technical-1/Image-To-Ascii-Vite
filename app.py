@@ -57,7 +57,12 @@ def convert():
 
 if __name__ == '__main__':
     import sys
-    # Use port 5001 by default (5000 is often used by AirPlay on macOS)
-    port = int(sys.argv[1]) if len(sys.argv) > 1 else 5001
-    app.run(debug=True, host='0.0.0.0', port=port)
+    # Use port from environment variable (for Render) or default to 5001
+    port = int(os.environ.get('PORT', 5001))
+    # Use port from command line if provided (for local development)
+    if len(sys.argv) > 1:
+        port = int(sys.argv[1])
+    # Disable debug mode in production
+    debug = os.environ.get('FLASK_ENV') == 'development'
+    app.run(debug=debug, host='0.0.0.0', port=port)
 
