@@ -2,7 +2,7 @@
 
 A web-based tool for converting images to ASCII art with an interactive UI. Upload any image and customize the output with real-time preview. Built with Vite and pure JavaScript - no backend required!
 
-🌐 **Live Demo**: [https://your-app-name.vercel.app](https://your-app-name.vercel.app)
+🌐 **Live Demo**: [https://image-to-ascii-nine.vercel.app](https://image-to-ascii-nine.vercel.app)
 
 ## Features
 
