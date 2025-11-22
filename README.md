@@ -1,6 +1,8 @@
 # Image to ASCII Converter
 
-A web-based tool for converting images to ASCII art with a beautiful, interactive UI. Upload any image and customize the output with real-time preview. Built with Vite and pure JavaScript - no backend required!
+A web-based tool for converting images to ASCII art with an interactive UI. Upload any image and customize the output with real-time preview. Built with Vite and pure JavaScript - no backend required!
+
+🌐 **Live Demo**: [https://your-app-name.vercel.app](https://your-app-name.vercel.app)
 
 ## Features
 
@@ -45,16 +47,6 @@ Preview the production build:
 npm run preview
 ```
 
-## Deployment to Vercel
-
-This project is configured for easy deployment on Vercel:
-
-1. Push your code to GitHub
-2. Import your repository in Vercel
-3. Vercel will automatically detect the Vite configuration and deploy
-
-The `vercel.json` file is already configured with the correct settings.
-
 ## How It Works
 
 The application uses the HTML5 Canvas API to:
@@ -93,7 +85,3 @@ Image-To-Ascii-Flash/
     ├── script.js      # Main JavaScript (client-side conversion)
     └── style.css     # Stylesheet
 ```
-
-## License
-
-MIT License - feel free to use and modify as needed!
