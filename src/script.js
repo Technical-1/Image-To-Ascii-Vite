@@ -1,5 +1,9 @@
+// Import CSS
+import './style.css';
+
 // Global variables
 let currentImage = null;
+let currentImageDataUrl = null;
 let currentAscii = '';
 let debounceTimer = null;
 
@@ -78,13 +82,13 @@ function handleImageUpload(event) {
     // Show image preview
     const reader = new FileReader();
     reader.onload = function(e) {
+        currentImageDataUrl = e.target.result;
         imagePreview.innerHTML = `<img src="${e.target.result}" alt="Preview">`;
         imagePreview.style.display = 'block';
+        // Convert to ASCII
+        convertToAscii();
     };
     reader.readAsDataURL(file);
-
-    // Convert to ASCII
-    convertToAscii();
 }
 
 function getSelectedChars() {
@@ -113,8 +117,72 @@ function debounceConvert() {
     debounceTimer = setTimeout(convertToAscii, 300);
 }
 
+/**
+ * Convert image to ASCII art using Canvas API
+ * @param {string} imageDataUrl - Data URL of the image
+ * @param {number} width - Width in characters
+ * @param {number} height - Height in characters
+ * @param {string} chars - Character set for brightness levels
+ * @returns {Promise<string[]>} Promise resolving to array of ASCII lines
+ */
+function imageToAscii(imageDataUrl, width, height, chars) {
+    return new Promise((resolve, reject) => {
+        try {
+            const img = new Image();
+            img.onload = function() {
+                // Create canvas for processing
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                
+                // Set canvas size to target dimensions
+                canvas.width = width;
+                canvas.height = height;
+                
+                // Draw image to canvas (this automatically resizes)
+                ctx.drawImage(img, 0, 0, width, height);
+                
+                // Get image data
+                const imageData = ctx.getImageData(0, 0, width, height);
+                const pixels = imageData.data;
+                
+                // Convert to ASCII
+                const asciiLines = [];
+                
+                for (let i = 0; i < height; i++) {
+                    let line = '';
+                    for (let j = 0; j < width; j++) {
+                        // Get pixel index (RGBA format)
+                        const pixelIndex = (i * width + j) * 4;
+                        const r = pixels[pixelIndex];
+                        const g = pixels[pixelIndex + 1];
+                        const b = pixels[pixelIndex + 2];
+                        
+                        // Convert RGB to grayscale using luminance formula
+                        const grayscale = 0.299 * r + 0.587 * g + 0.114 * b;
+                        
+                        // Map grayscale value (0-255) to character index
+                        const charIndex = Math.floor((grayscale / 255) * (chars.length - 1));
+                        line += chars[charIndex];
+                    }
+                    asciiLines.push(line);
+                }
+                
+                resolve(asciiLines);
+            };
+            
+            img.onerror = function() {
+                reject(new Error('Failed to load image'));
+            };
+            
+            img.src = imageDataUrl;
+        } catch (error) {
+            reject(error);
+        }
+    });
+}
+
 function convertToAscii() {
-    if (!currentImage) {
+    if (!currentImage || !currentImageDataUrl) {
         asciiPreview.innerHTML = '<p class="placeholder">Upload an image to see the ASCII art preview</p>';
         copyButton.disabled = true;
         downloadButton.disabled = true;
@@ -131,34 +199,19 @@ function convertToAscii() {
     const height = parseInt(heightInput.value) || parseInt(heightSlider.value);
     const chars = getSelectedChars();
 
-    // Create form data
-    const formData = new FormData();
-    formData.append('image', currentImage);
-    formData.append('width', width);
-    formData.append('height', height);
-    formData.append('chars', chars);
-
-    // Send request
-    fetch('/convert', {
-        method: 'POST',
-        body: formData
-    })
-    .then(response => response.json())
-    .then(data => {
-        if (data.error) {
-            asciiPreview.innerHTML = `<p class="placeholder" style="color: #ff4444;">Error: ${data.error}</p>`;
-            return;
-        }
-
-        currentAscii = data.ascii;
-        asciiPreview.textContent = data.ascii;
-        copyButton.disabled = false;
-        downloadButton.disabled = false;
-    })
-    .catch(error => {
-        console.error('Error:', error);
-        asciiPreview.innerHTML = `<p class="placeholder" style="color: #ff4444;">Error converting image. Please try again.</p>`;
-    });
+    // Perform client-side conversion
+    imageToAscii(currentImageDataUrl, width, height, chars)
+        .then(asciiLines => {
+            const asciiText = asciiLines.join('\n');
+            currentAscii = asciiText;
+            asciiPreview.textContent = asciiText;
+            copyButton.disabled = false;
+            downloadButton.disabled = false;
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            asciiPreview.innerHTML = `<p class="placeholder" style="color: #ff4444;">Error converting image: ${error.message}</p>`;
+        });
 }
 
 function copyAscii() {

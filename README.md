@@ -1,8 +1,6 @@
 # Image to ASCII Converter
 
-A web-based tool for converting images to ASCII art with a beautiful, interactive UI. Upload any image and customize the output with real-time preview.
-
-🌐 **Live Demo**: [https://image-to-ascii-erfs.onrender.com](https://image-to-ascii-erfs.onrender.com)
+A web-based tool for converting images to ASCII art with a beautiful, interactive UI. Upload any image and customize the output with real-time preview. Built with Vite and pure JavaScript - no backend required!
 
 ## Features
 
@@ -12,54 +10,61 @@ A web-based tool for converting images to ASCII art with a beautiful, interactiv
 - ✏️ **Multiple Character Sets**: Choose from preset character sets or create your own
 - 📋 **Copy & Download**: Easily copy to clipboard or download as a text file
 - 🎯 **Modern UI**: Beautiful, responsive interface that works on desktop and mobile
+- ⚡ **100% Client-Side**: All processing happens in the browser - no server needed!
 
 ## Installation
 
-1. Install the required dependencies:
+1. Install dependencies:
 ```bash
-pip install -r requirements.txt
+npm install
 ```
 
-## Usage
+## Development
 
-### Web Interface
-
-**Try it online**: [https://image-to-ascii-erfs.onrender.com](https://image-to-ascii-erfs.onrender.com)
-
-Or run locally:
-
-1. Start the Flask server:
-```bash
-python app.py
-```
-
-2. Open your browser and navigate to:
-```
-http://localhost:5001
-```
-
-   (Note: Port 5001 is used by default since port 5000 is often occupied by AirPlay on macOS. You can specify a different port by running `python app.py <port_number>`)
-
-3. Upload an image, adjust the settings, and preview your ASCII art!
-
-### Command Line Interface
-
-You can also use the script directly from the command line:
+Run the development server:
 
 ```bash
-python generate_ascii.py <image_path> [options]
+npm run dev
 ```
 
-Options:
-- `--width WIDTH`: Width in characters (default: 50)
-- `--height HEIGHT`: Height in characters (default: 30)
-- `--chars CHARS`: Character set for brightness levels (default: "@%#*+=-:. ")
-- `--format FORMAT`: Output format - 'text' or 'svg' (default: 'text')
+Then open your browser to the URL shown (typically `http://localhost:5173`).
 
-Example:
+## Building for Production
+
+Build the project:
+
 ```bash
-python generate_ascii.py my_image.png --width 80 --height 40
+npm run build
 ```
+
+The built files will be in the `dist/` directory.
+
+Preview the production build:
+
+```bash
+npm run preview
+```
+
+## Deployment to Vercel
+
+This project is configured for easy deployment on Vercel:
+
+1. Push your code to GitHub
+2. Import your repository in Vercel
+3. Vercel will automatically detect the Vite configuration and deploy
+
+The `vercel.json` file is already configured with the correct settings.
+
+## How It Works
+
+The application uses the HTML5 Canvas API to:
+1. Load the uploaded image
+2. Draw it to a canvas at the target dimensions
+3. Extract pixel data and convert to grayscale
+4. Map brightness values to ASCII characters
+5. Display the result in real-time
+
+All processing happens entirely in the browser - no server-side code required!
 
 ## Character Sets
 
@@ -76,19 +81,19 @@ You can also enter custom character sets in the "Custom Characters" field.
 ## Project Structure
 
 ```
-Image-To-Ascii/
-├── app.py                 # Flask web application
-├── generate_ascii.py      # Core ASCII conversion logic
-├── requirements.txt       # Python dependencies
-├── templates/
-│   └── index.html        # Web UI template
-├── static/
-│   ├── style.css        # Stylesheet
-│   └── script.js        # Frontend JavaScript
-└── uploads/             # Temporary upload directory (created automatically)
+Image-To-Ascii-Flash/
+├── index.html          # Main HTML file
+├── package.json        # Node.js dependencies
+├── vite.config.js      # Vite configuration
+├── vercel.json         # Vercel deployment configuration
+├── public/
+│   ├── favicon.png    # Favicon
+│   └── logo.png       # Logo image
+└── src/
+    ├── script.js      # Main JavaScript (client-side conversion)
+    └── style.css     # Stylesheet
 ```
 
 ## License
 
 MIT License - feel free to use and modify as needed!
-

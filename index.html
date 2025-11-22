@@ -4,18 +4,17 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Image to ASCII Converter</title>
-    <link rel="icon" type="image/png" sizes="32x32" href="/static/favicon.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="/static/favicon.png">
-    <link rel="shortcut icon" type="image/png" href="/static/favicon.png">
-    <link rel="apple-touch-icon" href="/static/favicon.png">
-    <link rel="icon" type="image/x-icon" href="/favicon.ico">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon.png">
+    <link rel="shortcut icon" type="image/png" href="/favicon.png">
+    <link rel="apple-touch-icon" href="/favicon.png">
+    <link rel="icon" type="image/x-icon" href="/favicon.png">
 </head>
 <body>
     <div class="container">
         <header>
             <div class="header-content">
-                <img src="{{ url_for('static', filename='logo.png') }}" alt="Image to ASCII Converter Logo" class="header-logo">
+                <img src="/logo.png" alt="Image to ASCII Converter Logo" class="header-logo">
                 <div class="header-text">
                     <h1>Image to ASCII Converter</h1>
                     <p>Upload an image and convert it to ASCII art with customizable settings</p>
@@ -113,7 +112,7 @@
         </div>
     </div>
 
-    <script src="{{ url_for('static', filename='script.js') }}"></script>
+    <script type="module" src="/src/script.js"></script>
 </body>
 </html>
 
