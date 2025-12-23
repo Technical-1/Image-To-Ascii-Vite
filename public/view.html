@@ -12,17 +12,13 @@
   <style>
     :root {
       --bg-primary: #0a0a0a;
-      --bg-secondary: #111111;
-      --bg-tertiary: #1a1a1a;
-      --bg-card: #161616;
+      --bg-secondary: #1a1a1a;
+      --bg-tertiary: #2d2d2d;
       --text-primary: #ffffff;
-      --text-secondary: #888888;
-      --text-muted: #555555;
-      --accent: #8b5cf6;
-      --accent-hover: #a78bfa;
-      --accent-glow: rgba(139, 92, 246, 0.3);
-      --border-color: #2a2a2a;
-      --border-hover: #3a3a3a;
+      --text-secondary: #b0b0b0;
+      --accent-primary: #00ff00;
+      --accent-dim: #00cc00;
+      --border-color: #333;
     }
 
     * {
@@ -31,100 +27,81 @@
       box-sizing: border-box;
     }
 
+    html, body {
+      height: 100%;
+      overflow: hidden;
+    }
+
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-      background: var(--bg-primary);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, var(--bg-primary) 0%, #001a00 100%);
       color: var(--text-primary);
-      min-height: 100vh;
       display: flex;
       flex-direction: column;
     }
 
     /* Header */
     .header {
-      padding: 20px 30px;
+      padding: 15px 25px;
       display: flex;
       justify-content: space-between;
       align-items: center;
       border-bottom: 1px solid var(--border-color);
-      background: var(--bg-secondary);
+      background: rgba(10, 10, 10, 0.9);
+      backdrop-filter: blur(10px);
+      flex-shrink: 0;
+      z-index: 100;
     }
 
-    .logo {
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      text-decoration: none;
-      color: var(--text-primary);
-    }
-
-    .logo-icon {
-      width: 36px;
-      height: 36px;
-    }
-
-    .logo-text {
-      font-size: 1.1rem;
-      font-weight: 600;
-      background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+    .header h1 {
+      font-size: 1.3rem;
+      background: linear-gradient(90deg, var(--accent-primary), var(--accent-dim));
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
     }
 
     .create-btn {
-      background: var(--accent);
-      color: white;
+      background: var(--accent-primary);
+      color: var(--bg-primary);
       padding: 10px 20px;
       border-radius: 8px;
       text-decoration: none;
-      font-weight: 500;
+      font-weight: 600;
       font-size: 0.9rem;
       transition: all 0.2s ease;
     }
 
     .create-btn:hover {
-      background: var(--accent-hover);
+      background: var(--accent-dim);
       transform: translateY(-1px);
-      box-shadow: 0 4px 20px var(--accent-glow);
+      box-shadow: 0 4px 20px rgba(0, 255, 0, 0.3);
     }
 
-    /* Main Content */
+    /* Main Content - ASCII fills remaining space */
     .main {
       flex: 1;
       display: flex;
-      flex-direction: column;
       align-items: center;
       justify-content: center;
-      padding: 40px 20px;
-    }
-
-    /* ASCII Display */
-    .ascii-wrapper {
-      position: relative;
-      max-width: 95vw;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
+      overflow: hidden;
+      padding: 20px;
     }
 
     .ascii-container {
       background: var(--bg-primary);
       border: 1px solid var(--border-color);
-      border-radius: 16px;
-      padding: 30px;
+      border-radius: 12px;
+      padding: 20px;
       overflow: auto;
-      max-height: 70vh;
+      max-height: 100%;
       max-width: 100%;
-      font-family: 'Courier New', 'Monaco', 'Consolas', monospace;
+      font-family: 'Courier New', monospace;
       font-size: 8px;
-      line-height: 0.75;
-      color: var(--accent);
+      line-height: 0.7;
+      color: var(--accent-primary);
       white-space: pre;
-      box-shadow: 
-        0 0 0 1px var(--border-color),
-        0 20px 60px rgba(0, 0, 0, 0.5),
-        0 0 100px var(--accent-glow);
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
     }
 
     .ascii-container::-webkit-scrollbar {
@@ -142,117 +119,64 @@
       border-radius: 4px;
     }
 
-    .ascii-container::-webkit-scrollbar-thumb:hover {
-      background: var(--border-hover);
-    }
-
-    /* Stats Bar */
-    .stats-bar {
+    /* Floating Download Bar */
+    .floating-bar {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
       display: flex;
-      gap: 24px;
-      margin-top: 20px;
-      padding: 12px 20px;
-      background: var(--bg-card);
-      border-radius: 10px;
-      border: 1px solid var(--border-color);
-    }
-
-    .stat {
-      display: flex;
-      align-items: center;
       gap: 8px;
-    }
-
-    .stat-icon {
-      color: var(--text-muted);
-      font-size: 0.9rem;
-    }
-
-    .stat-value {
-      color: var(--text-primary);
-      font-weight: 500;
-      font-size: 0.9rem;
-    }
-
-    .stat-label {
-      color: var(--text-muted);
-      font-size: 0.85rem;
-    }
-
-    /* Download Panel */
-    .download-panel {
-      margin-top: 30px;
-      background: var(--bg-card);
+      padding: 12px 16px;
+      background: rgba(26, 26, 26, 0.95);
+      backdrop-filter: blur(20px);
       border: 1px solid var(--border-color);
       border-radius: 16px;
-      padding: 24px;
-      width: 100%;
-      max-width: 600px;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+      z-index: 1000;
     }
 
-    .panel-title {
-      font-size: 1rem;
-      font-weight: 600;
-      margin-bottom: 16px;
-      color: var(--text-primary);
+    .floating-bar.hidden {
+      display: none;
+    }
+
+    .action-btn {
       display: flex;
-      align-items: center;
-      gap: 10px;
-    }
-
-    .download-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
-      gap: 12px;
-    }
-
-    .download-btn {
-      display: flex;
-      flex-direction: column;
       align-items: center;
       gap: 8px;
-      padding: 16px;
+      padding: 10px 16px;
       background: var(--bg-tertiary);
       border: 1px solid var(--border-color);
-      border-radius: 12px;
+      border-radius: 10px;
       color: var(--text-primary);
+      font-size: 0.9rem;
       cursor: pointer;
       transition: all 0.2s ease;
       font-family: inherit;
     }
 
-    .download-btn:hover {
-      background: var(--bg-secondary);
-      border-color: var(--accent);
+    .action-btn:hover {
+      background: var(--accent-primary);
+      color: var(--bg-primary);
+      border-color: var(--accent-primary);
       transform: translateY(-2px);
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
     }
 
-    .download-btn .icon {
-      font-size: 1.5rem;
-    }
-
-    .download-btn .label {
-      font-size: 0.9rem;
-      font-weight: 500;
-    }
-
-    .download-btn .desc {
-      font-size: 0.75rem;
-      color: var(--text-muted);
+    .action-btn .icon {
+      font-size: 1.1rem;
     }
 
     /* Loading & Error States */
     .loading, .error {
       text-align: center;
-      padding: 80px 20px;
+      padding: 100px 20px;
     }
 
     .loading-spinner {
-      width: 48px;
-      height: 48px;
-      border: 3px solid var(--border-color);
-      border-top-color: var(--accent);
+      width: 50px;
+      height: 50px;
+      border: 4px solid rgba(0, 255, 0, 0.1);
+      border-top-color: var(--accent-primary);
       border-radius: 50%;
       animation: spin 1s linear infinite;
       margin: 0 auto 20px;
@@ -262,53 +186,33 @@
       to { transform: rotate(360deg); }
     }
 
-    .loading-text {
-      color: var(--text-secondary);
-      font-size: 1rem;
-    }
-
-    .error-icon {
-      font-size: 3rem;
-      margin-bottom: 16px;
-    }
-
     .error h2 {
-      color: var(--text-primary);
-      font-size: 1.5rem;
-      margin-bottom: 8px;
+      color: #ff4444;
+      margin-bottom: 15px;
     }
 
     .error p {
       color: var(--text-secondary);
-    }
-
-    .error .retry-btn {
-      margin-top: 24px;
-      background: var(--accent);
-      color: white;
-      padding: 12px 24px;
-      border-radius: 8px;
-      text-decoration: none;
-      font-weight: 500;
-      display: inline-block;
+      margin-bottom: 20px;
     }
 
     /* Toast */
     .toast {
       position: fixed;
-      bottom: 30px;
+      top: 80px;
       left: 50%;
-      transform: translateX(-50%) translateY(100px);
-      background: var(--bg-card);
-      border: 1px solid var(--accent);
+      transform: translateX(-50%) translateY(-20px);
+      background: var(--bg-secondary);
+      border: 1px solid var(--accent-primary);
       color: var(--text-primary);
-      padding: 14px 24px;
+      padding: 12px 24px;
       border-radius: 10px;
       font-size: 0.95rem;
       box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
       opacity: 0;
       transition: all 0.3s ease;
-      z-index: 1000;
+      z-index: 2000;
+      pointer-events: none;
     }
 
     .toast.show {
@@ -321,47 +225,86 @@
       display: none;
     }
 
+    /* Stats overlay */
+    .stats-overlay {
+      position: fixed;
+      top: 80px;
+      right: 20px;
+      display: flex;
+      gap: 15px;
+      padding: 10px 15px;
+      background: rgba(26, 26, 26, 0.9);
+      backdrop-filter: blur(10px);
+      border: 1px solid var(--border-color);
+      border-radius: 10px;
+      font-size: 0.85rem;
+      z-index: 100;
+    }
+
+    .stat {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      color: var(--text-secondary);
+    }
+
+    .stat-value {
+      color: var(--accent-primary);
+      font-weight: 600;
+      font-family: monospace;
+    }
+
     @media (max-width: 768px) {
       .header {
-        padding: 15px 20px;
+        padding: 12px 15px;
       }
 
-      .logo-text {
-        display: none;
+      .header h1 {
+        font-size: 1rem;
+      }
+
+      .create-btn {
+        padding: 8px 14px;
+        font-size: 0.8rem;
       }
 
       .main {
-        padding: 20px 15px;
+        padding: 15px;
       }
 
       .ascii-container {
-        font-size: 5px;
-        padding: 20px;
-        max-height: 60vh;
+        font-size: 4px;
+        padding: 15px;
       }
 
-      .stats-bar {
-        flex-wrap: wrap;
-        justify-content: center;
-        gap: 16px;
+      .floating-bar {
+        bottom: 20px;
+        padding: 10px 12px;
+        gap: 6px;
       }
 
-      .download-panel {
-        padding: 16px;
+      .action-btn {
+        padding: 8px 12px;
+        font-size: 0.8rem;
       }
 
-      .download-grid {
-        grid-template-columns: repeat(2, 1fr);
+      .action-btn .label {
+        display: none;
+      }
+
+      .stats-overlay {
+        top: 70px;
+        right: 10px;
+        padding: 8px 12px;
+        font-size: 0.75rem;
+        gap: 10px;
       }
     }
   </style>
 </head>
 <body>
   <header class="header">
-    <a href="/" class="logo">
-      <img src="/favicon.svg" alt="" class="logo-icon">
-      <span class="logo-text">Image to ASCII</span>
-    </a>
+    <h1>🖼️ Shared ASCII Art</h1>
     <a href="/" class="create-btn">✨ Create Your Own</a>
   </header>
 
@@ -369,10 +312,31 @@
     <div id="content">
       <div class="loading">
         <div class="loading-spinner"></div>
-        <p class="loading-text">Loading ASCII art...</p>
+        <p>Loading ASCII art...</p>
       </div>
     </div>
   </main>
+
+  <div class="stats-overlay hidden" id="stats"></div>
+
+  <div class="floating-bar hidden" id="floating-bar">
+    <button class="action-btn" onclick="copyToClipboard()">
+      <span class="icon">📋</span>
+      <span class="label">Copy</span>
+    </button>
+    <button class="action-btn" onclick="downloadTxt()">
+      <span class="icon">📄</span>
+      <span class="label">TXT</span>
+    </button>
+    <button class="action-btn" onclick="downloadPng()">
+      <span class="icon">🖼️</span>
+      <span class="label">PNG</span>
+    </button>
+    <button class="action-btn" onclick="downloadHtml()">
+      <span class="icon">🎨</span>
+      <span class="label">HTML</span>
+    </button>
+  </div>
 
   <div class="toast" id="toast"></div>
   <canvas id="export-canvas"></canvas>
@@ -386,7 +350,7 @@
       const id = params.get('id');
 
       if (!id) {
-        showError('No share ID provided', 'The link appears to be incomplete.');
+        showError('No share ID provided');
         return;
       }
 
@@ -395,11 +359,10 @@
         const data = await response.json();
 
         if (!response.ok) {
-          showError('Share not found', data.error || 'This share may have expired or been deleted.');
+          showError(data.error || 'Failed to load share');
           return;
         }
 
-        // Store data for downloads
         asciiData.text = data.ascii?.text || data.ascii;
         asciiData.html = data.ascii?.html || '';
         shareSettings = data.settings || {};
@@ -408,113 +371,98 @@
 
       } catch (error) {
         console.error('Load error:', error);
-        showError('Failed to load', 'There was a problem loading this share.');
+        showError('Failed to load shared ASCII art');
       }
     }
 
     function renderContent(data) {
+      // Create ASCII container
       const container = document.createElement('div');
-      container.className = 'ascii-wrapper';
-
-      // ASCII display
-      const asciiBox = document.createElement('div');
-      asciiBox.className = 'ascii-container';
+      container.className = 'ascii-container';
+      container.id = 'ascii-display';
       
       if (asciiData.html && shareSettings.colorMode !== 'grayscale') {
-        asciiBox.innerHTML = asciiData.html;
+        container.innerHTML = asciiData.html;
       } else {
-        asciiBox.textContent = asciiData.text;
+        container.textContent = asciiData.text;
       }
 
       // Apply font settings
       if (shareSettings.fontSize) {
-        asciiBox.style.fontSize = `${shareSettings.fontSize}px`;
+        container.style.fontSize = `${shareSettings.fontSize}px`;
       }
       if (shareSettings.lineHeight) {
-        asciiBox.style.lineHeight = shareSettings.lineHeight;
+        container.style.lineHeight = shareSettings.lineHeight;
       }
-
-      container.appendChild(asciiBox);
-
-      // Stats bar
-      const stats = document.createElement('div');
-      stats.className = 'stats-bar';
-      stats.innerHTML = `
-        <div class="stat">
-          <span class="stat-icon">👁️</span>
-          <span class="stat-value">${data.views || 1}</span>
-          <span class="stat-label">views</span>
-        </div>
-        <div class="stat">
-          <span class="stat-icon">📐</span>
-          <span class="stat-value">${shareSettings.width || '?'} × ${shareSettings.height || '?'}</span>
-        </div>
-        <div class="stat">
-          <span class="stat-icon">📅</span>
-          <span class="stat-value">${formatDate(data.createdAt)}</span>
-        </div>
-      `;
-      container.appendChild(stats);
-
-      // Download panel
-      const panel = document.createElement('div');
-      panel.className = 'download-panel';
-      panel.innerHTML = `
-        <div class="panel-title">
-          <span>💾</span>
-          <span>Download Options</span>
-        </div>
-        <div class="download-grid">
-          <button class="download-btn" onclick="copyToClipboard()">
-            <span class="icon">📋</span>
-            <span class="label">Copy</span>
-            <span class="desc">To clipboard</span>
-          </button>
-          <button class="download-btn" onclick="downloadTxt()">
-            <span class="icon">📄</span>
-            <span class="label">TXT</span>
-            <span class="desc">Plain text</span>
-          </button>
-          <button class="download-btn" onclick="downloadPng()">
-            <span class="icon">🖼️</span>
-            <span class="label">PNG</span>
-            <span class="desc">Image file</span>
-          </button>
-          <button class="download-btn" onclick="downloadHtml()">
-            <span class="icon">🎨</span>
-            <span class="label">HTML</span>
-            <span class="desc">With colors</span>
-          </button>
-        </div>
-      `;
-      container.appendChild(panel);
 
       document.getElementById('content').innerHTML = '';
       document.getElementById('content').appendChild(container);
-    }
 
-    function showError(title, message) {
-      document.getElementById('content').innerHTML = `
-        <div class="error">
-          <div class="error-icon">😢</div>
-          <h2>${title}</h2>
-          <p>${message}</p>
-          <a href="/" class="retry-btn">Create Your Own ASCII Art</a>
+      // Show stats
+      const stats = document.getElementById('stats');
+      stats.innerHTML = `
+        <div class="stat">
+          <span>👁️</span>
+          <span class="stat-value">${data.views || 1}</span>
+        </div>
+        <div class="stat">
+          <span>📐</span>
+          <span class="stat-value">${shareSettings.width || '?'}×${shareSettings.height || '?'}</span>
         </div>
       `;
+      stats.classList.remove('hidden');
+
+      // Show floating bar
+      document.getElementById('floating-bar').classList.remove('hidden');
+
+      // Auto-fit ASCII to container
+      fitAsciiToWindow();
+      window.addEventListener('resize', fitAsciiToWindow);
     }
 
-    function formatDate(timestamp) {
-      if (!timestamp) return 'Unknown';
-      const date = new Date(timestamp);
-      const now = new Date();
-      const diffMs = now - date;
-      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+    function fitAsciiToWindow() {
+      const container = document.getElementById('ascii-display');
+      if (!container) return;
+
+      const main = document.querySelector('.main');
+      const mainRect = main.getBoundingClientRect();
+      const padding = 40; // Account for container padding
+
+      // Reset to measure natural size
+      container.style.fontSize = '8px';
       
-      if (diffDays === 0) return 'Today';
-      if (diffDays === 1) return 'Yesterday';
-      if (diffDays < 7) return `${diffDays} days ago`;
-      return date.toLocaleDateString();
+      // Get the ASCII dimensions
+      const lines = asciiData.text.split('\n');
+      const maxLineLength = Math.max(...lines.map(l => l.length));
+      const lineCount = lines.length;
+
+      // Calculate available space
+      const availableWidth = mainRect.width - padding * 2;
+      const availableHeight = mainRect.height - padding * 2;
+
+      // Calculate font size to fit
+      // Each character is roughly 0.6 * fontSize wide in monospace
+      // Line height is 0.7 * fontSize
+      const charWidthRatio = 0.6;
+      const lineHeightRatio = 0.7;
+
+      const maxFontByWidth = availableWidth / (maxLineLength * charWidthRatio);
+      const maxFontByHeight = availableHeight / (lineCount * lineHeightRatio);
+
+      let optimalFontSize = Math.min(maxFontByWidth, maxFontByHeight);
+      optimalFontSize = Math.max(3, Math.min(optimalFontSize, 16)); // Clamp between 3-16px
+
+      container.style.fontSize = `${optimalFontSize}px`;
+    }
+
+    function showError(message) {
+      document.getElementById('content').innerHTML = `
+        <div class="error">
+          <h2>😢 Oops!</h2>
+          <p>${message}</p>
+          <a href="/" class="create-btn">Create Your Own ASCII Art</a>
+        </div>
+      `;
     }
 
     function showToast(message) {
@@ -544,7 +492,7 @@
       const ctx = canvas.getContext('2d');
       
       const lines = asciiData.text.split('\n');
-      const fontSize = 10;
+      const fontSize = 12;
       const lineHeight = fontSize * 0.8;
       
       ctx.font = `${fontSize}px "Courier New", monospace`;
@@ -553,13 +501,11 @@
       canvas.width = maxWidth + 40;
       canvas.height = (lines.length * lineHeight) + 40;
       
-      // Background
       ctx.fillStyle = '#0a0a0a';
       ctx.fillRect(0, 0, canvas.width, canvas.height);
       
-      // Text
       ctx.font = `${fontSize}px "Courier New", monospace`;
-      ctx.fillStyle = '#8b5cf6';
+      ctx.fillStyle = '#00ff00';
       ctx.textBaseline = 'top';
       
       lines.forEach((line, i) => {
@@ -589,8 +535,8 @@
     pre {
       font-family: 'Courier New', monospace;
       font-size: ${shareSettings.fontSize || 8}px;
-      line-height: ${shareSettings.lineHeight || 0.75};
-      color: #8b5cf6;
+      line-height: ${shareSettings.lineHeight || 0.7};
+      color: #00ff00;
       margin: 0;
     }
   </style>
