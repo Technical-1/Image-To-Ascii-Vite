@@ -6,17 +6,23 @@
   <meta name="description" content="Shared ASCII Art - View this amazing ASCII creation">
   <title>Shared ASCII Art - Image to ASCII Converter</title>
   
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
   <link rel="icon" type="image/png" href="/favicon.png">
   
   <style>
     :root {
       --bg-primary: #0a0a0a;
-      --bg-secondary: #1a1a1a;
-      --bg-tertiary: #2d2d2d;
+      --bg-secondary: #111111;
+      --bg-tertiary: #1a1a1a;
+      --bg-card: #161616;
       --text-primary: #ffffff;
-      --text-secondary: #b0b0b0;
-      --accent-primary: #00ff00;
-      --border-color: #333;
+      --text-secondary: #888888;
+      --text-muted: #555555;
+      --accent: #8b5cf6;
+      --accent-hover: #a78bfa;
+      --accent-glow: rgba(139, 92, 246, 0.3);
+      --border-color: #2a2a2a;
+      --border-hover: #3a3a3a;
     }
 
     * {
@@ -26,127 +32,227 @@
     }
 
     body {
-      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
-      background: linear-gradient(135deg, var(--bg-primary) 0%, #001a00 100%);
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+      background: var(--bg-primary);
       color: var(--text-primary);
       min-height: 100vh;
-      padding: 20px;
+      display: flex;
+      flex-direction: column;
     }
 
-    .container {
-      max-width: 1400px;
-      margin: 0 auto;
-    }
-
+    /* Header */
     .header {
-      text-align: center;
-      margin-bottom: 30px;
+      padding: 20px 30px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border-color);
+      background: var(--bg-secondary);
     }
 
-    .header h1 {
-      font-size: 2rem;
-      background: linear-gradient(90deg, var(--accent-primary), #00cc00);
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      text-decoration: none;
+      color: var(--text-primary);
+    }
+
+    .logo-icon {
+      width: 36px;
+      height: 36px;
+    }
+
+    .logo-text {
+      font-size: 1.1rem;
+      font-weight: 600;
+      background: linear-gradient(135deg, var(--accent), var(--accent-hover));
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       background-clip: text;
-      margin-bottom: 10px;
     }
 
-    .header p {
-      color: var(--text-secondary);
-    }
-
-    .stats {
-      display: flex;
-      justify-content: center;
-      gap: 30px;
-      margin: 20px 0;
-      flex-wrap: wrap;
-    }
-
-    .stat {
-      background: var(--bg-secondary);
-      padding: 15px 25px;
+    .create-btn {
+      background: var(--accent);
+      color: white;
+      padding: 10px 20px;
       border-radius: 8px;
-      border: 1px solid var(--border-color);
+      text-decoration: none;
+      font-weight: 500;
+      font-size: 0.9rem;
+      transition: all 0.2s ease;
     }
 
-    .stat-label {
-      color: var(--text-secondary);
-      font-size: 0.85rem;
+    .create-btn:hover {
+      background: var(--accent-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 4px 20px var(--accent-glow);
     }
 
-    .stat-value {
-      color: var(--accent-primary);
-      font-size: 1.2rem;
-      font-weight: bold;
-      font-family: 'Courier New', monospace;
+    /* Main Content */
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 40px 20px;
+    }
+
+    /* ASCII Display */
+    .ascii-wrapper {
+      position: relative;
+      max-width: 95vw;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
     }
 
     .ascii-container {
       background: var(--bg-primary);
-      border: 2px solid var(--border-color);
-      border-radius: 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
       padding: 30px;
       overflow: auto;
       max-height: 70vh;
-      font-family: 'Courier New', monospace;
+      max-width: 100%;
+      font-family: 'Courier New', 'Monaco', 'Consolas', monospace;
       font-size: 8px;
-      line-height: 0.7;
-      color: var(--accent-primary);
+      line-height: 0.75;
+      color: var(--accent);
       white-space: pre;
-      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
-      position: relative;
+      box-shadow: 
+        0 0 0 1px var(--border-color),
+        0 20px 60px rgba(0, 0, 0, 0.5),
+        0 0 100px var(--accent-glow);
     }
 
-    /* Clean display without scanlines */
+    .ascii-container::-webkit-scrollbar {
+      width: 8px;
+      height: 8px;
+    }
 
-    .actions {
+    .ascii-container::-webkit-scrollbar-track {
+      background: var(--bg-secondary);
+      border-radius: 4px;
+    }
+
+    .ascii-container::-webkit-scrollbar-thumb {
+      background: var(--border-color);
+      border-radius: 4px;
+    }
+
+    .ascii-container::-webkit-scrollbar-thumb:hover {
+      background: var(--border-hover);
+    }
+
+    /* Stats Bar */
+    .stats-bar {
       display: flex;
-      justify-content: center;
-      gap: 15px;
-      margin-top: 25px;
-      flex-wrap: wrap;
+      gap: 24px;
+      margin-top: 20px;
+      padding: 12px 20px;
+      background: var(--bg-card);
+      border-radius: 10px;
+      border: 1px solid var(--border-color);
     }
 
-    .btn {
-      background: var(--bg-tertiary);
-      border: 1px solid var(--border-color);
-      color: var(--text-primary);
-      padding: 12px 24px;
-      border-radius: 8px;
-      cursor: pointer;
-      font-size: 1rem;
-      transition: all 0.3s ease;
-      text-decoration: none;
-      display: inline-flex;
+    .stat {
+      display: flex;
       align-items: center;
       gap: 8px;
     }
 
-    .btn:hover {
-      background: var(--accent-primary);
-      color: var(--bg-primary);
+    .stat-icon {
+      color: var(--text-muted);
+      font-size: 0.9rem;
+    }
+
+    .stat-value {
+      color: var(--text-primary);
+      font-weight: 500;
+      font-size: 0.9rem;
+    }
+
+    .stat-label {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+    }
+
+    /* Download Panel */
+    .download-panel {
+      margin-top: 30px;
+      background: var(--bg-card);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 24px;
+      width: 100%;
+      max-width: 600px;
+    }
+
+    .panel-title {
+      font-size: 1rem;
+      font-weight: 600;
+      margin-bottom: 16px;
+      color: var(--text-primary);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .download-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px;
+    }
+
+    .download-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      padding: 16px;
+      background: var(--bg-tertiary);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      color: var(--text-primary);
+      cursor: pointer;
+      transition: all 0.2s ease;
+      font-family: inherit;
+    }
+
+    .download-btn:hover {
+      background: var(--bg-secondary);
+      border-color: var(--accent);
       transform: translateY(-2px);
-      box-shadow: 0 4px 15px rgba(0, 255, 0, 0.3);
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
     }
 
-    .btn-primary {
-      background: var(--accent-primary);
-      color: var(--bg-primary);
-      border-color: var(--accent-primary);
+    .download-btn .icon {
+      font-size: 1.5rem;
     }
 
+    .download-btn .label {
+      font-size: 0.9rem;
+      font-weight: 500;
+    }
+
+    .download-btn .desc {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    /* Loading & Error States */
     .loading, .error {
       text-align: center;
-      padding: 100px 20px;
+      padding: 80px 20px;
     }
 
     .loading-spinner {
-      width: 50px;
-      height: 50px;
-      border: 4px solid rgba(0, 255, 0, 0.1);
-      border-top-color: var(--accent-primary);
+      width: 48px;
+      height: 48px;
+      border: 3px solid var(--border-color);
+      border-top-color: var(--accent);
       border-radius: 50%;
       animation: spin 1s linear infinite;
       margin: 0 auto 20px;
@@ -156,53 +262,131 @@
       to { transform: rotate(360deg); }
     }
 
+    .loading-text {
+      color: var(--text-secondary);
+      font-size: 1rem;
+    }
+
+    .error-icon {
+      font-size: 3rem;
+      margin-bottom: 16px;
+    }
+
     .error h2 {
-      color: #ff4444;
-      margin-bottom: 15px;
+      color: var(--text-primary);
+      font-size: 1.5rem;
+      margin-bottom: 8px;
+    }
+
+    .error p {
+      color: var(--text-secondary);
+    }
+
+    .error .retry-btn {
+      margin-top: 24px;
+      background: var(--accent);
+      color: white;
+      padding: 12px 24px;
+      border-radius: 8px;
+      text-decoration: none;
+      font-weight: 500;
+      display: inline-block;
+    }
+
+    /* Toast */
+    .toast {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: var(--bg-card);
+      border: 1px solid var(--accent);
+      color: var(--text-primary);
+      padding: 14px 24px;
+      border-radius: 10px;
+      font-size: 0.95rem;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+      opacity: 0;
+      transition: all 0.3s ease;
+      z-index: 1000;
+    }
+
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+
+    /* Hidden canvas for PNG export */
+    #export-canvas {
+      display: none;
     }
 
     @media (max-width: 768px) {
-      .ascii-container {
-        font-size: 5px;
-        padding: 15px;
+      .header {
+        padding: 15px 20px;
       }
 
-      .header h1 {
-        font-size: 1.5rem;
+      .logo-text {
+        display: none;
+      }
+
+      .main {
+        padding: 20px 15px;
+      }
+
+      .ascii-container {
+        font-size: 5px;
+        padding: 20px;
+        max-height: 60vh;
+      }
+
+      .stats-bar {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 16px;
+      }
+
+      .download-panel {
+        padding: 16px;
+      }
+
+      .download-grid {
+        grid-template-columns: repeat(2, 1fr);
       }
     }
   </style>
 </head>
 <body>
-  <div class="container">
-    <div class="header">
-      <h1>🖼️ Shared ASCII Art</h1>
-      <p>Created with Image to ASCII Converter</p>
-    </div>
+  <header class="header">
+    <a href="/" class="logo">
+      <img src="/favicon.svg" alt="" class="logo-icon">
+      <span class="logo-text">Image to ASCII</span>
+    </a>
+    <a href="/" class="create-btn">✨ Create Your Own</a>
+  </header>
 
+  <main class="main">
     <div id="content">
       <div class="loading">
         <div class="loading-spinner"></div>
-        <p>Loading shared ASCII art...</p>
+        <p class="loading-text">Loading ASCII art...</p>
       </div>
     </div>
+  </main>
 
-    <div class="actions" id="actions" style="display: none;">
-      <button class="btn" id="copy-btn">📋 Copy ASCII</button>
-      <button class="btn" id="download-btn">📄 Download TXT</button>
-      <a href="/" class="btn btn-primary">✨ Create Your Own</a>
-    </div>
-  </div>
+  <div class="toast" id="toast"></div>
+  <canvas id="export-canvas"></canvas>
 
   <script>
-    let asciiText = '';
+    let asciiData = { text: '', html: '' };
+    let shareSettings = {};
 
     async function loadShare() {
       const params = new URLSearchParams(window.location.search);
       const id = params.get('id');
 
       if (!id) {
-        showError('No share ID provided');
+        showError('No share ID provided', 'The link appears to be incomplete.');
         return;
       }
 
@@ -211,65 +395,111 @@
         const data = await response.json();
 
         if (!response.ok) {
-          showError(data.error || 'Failed to load share');
+          showError('Share not found', data.error || 'This share may have expired or been deleted.');
           return;
         }
 
-        asciiText = data.ascii?.text || data.ascii;
-        const html = data.ascii?.html;
-        
-        const container = document.createElement('div');
-        container.className = 'ascii-container';
-        
-        if (html && data.settings?.colorMode !== 'grayscale') {
-          container.innerHTML = html;
-        } else {
-          container.textContent = asciiText;
-        }
+        // Store data for downloads
+        asciiData.text = data.ascii?.text || data.ascii;
+        asciiData.html = data.ascii?.html || '';
+        shareSettings = data.settings || {};
 
-        // Apply font settings if available
-        if (data.settings?.fontSize) {
-          container.style.fontSize = `${data.settings.fontSize}px`;
-        }
-        if (data.settings?.lineHeight) {
-          container.style.lineHeight = data.settings.lineHeight;
-        }
-
-        const statsHtml = `
-          <div class="stats">
-            <div class="stat">
-              <div class="stat-label">Views</div>
-              <div class="stat-value">${data.views || 1}</div>
-            </div>
-            <div class="stat">
-              <div class="stat-label">Created</div>
-              <div class="stat-value">${formatDate(data.createdAt)}</div>
-            </div>
-            <div class="stat">
-              <div class="stat-label">Size</div>
-              <div class="stat-value">${data.settings?.width || '?'}×${data.settings?.height || '?'}</div>
-            </div>
-          </div>
-        `;
-
-        document.getElementById('content').innerHTML = statsHtml;
-        document.getElementById('content').appendChild(container);
-        document.getElementById('actions').style.display = 'flex';
+        renderContent(data);
 
       } catch (error) {
         console.error('Load error:', error);
-        showError('Failed to load shared ASCII art');
+        showError('Failed to load', 'There was a problem loading this share.');
       }
     }
 
-    function showError(message) {
+    function renderContent(data) {
+      const container = document.createElement('div');
+      container.className = 'ascii-wrapper';
+
+      // ASCII display
+      const asciiBox = document.createElement('div');
+      asciiBox.className = 'ascii-container';
+      
+      if (asciiData.html && shareSettings.colorMode !== 'grayscale') {
+        asciiBox.innerHTML = asciiData.html;
+      } else {
+        asciiBox.textContent = asciiData.text;
+      }
+
+      // Apply font settings
+      if (shareSettings.fontSize) {
+        asciiBox.style.fontSize = `${shareSettings.fontSize}px`;
+      }
+      if (shareSettings.lineHeight) {
+        asciiBox.style.lineHeight = shareSettings.lineHeight;
+      }
+
+      container.appendChild(asciiBox);
+
+      // Stats bar
+      const stats = document.createElement('div');
+      stats.className = 'stats-bar';
+      stats.innerHTML = `
+        <div class="stat">
+          <span class="stat-icon">👁️</span>
+          <span class="stat-value">${data.views || 1}</span>
+          <span class="stat-label">views</span>
+        </div>
+        <div class="stat">
+          <span class="stat-icon">📐</span>
+          <span class="stat-value">${shareSettings.width || '?'} × ${shareSettings.height || '?'}</span>
+        </div>
+        <div class="stat">
+          <span class="stat-icon">📅</span>
+          <span class="stat-value">${formatDate(data.createdAt)}</span>
+        </div>
+      `;
+      container.appendChild(stats);
+
+      // Download panel
+      const panel = document.createElement('div');
+      panel.className = 'download-panel';
+      panel.innerHTML = `
+        <div class="panel-title">
+          <span>💾</span>
+          <span>Download Options</span>
+        </div>
+        <div class="download-grid">
+          <button class="download-btn" onclick="copyToClipboard()">
+            <span class="icon">📋</span>
+            <span class="label">Copy</span>
+            <span class="desc">To clipboard</span>
+          </button>
+          <button class="download-btn" onclick="downloadTxt()">
+            <span class="icon">📄</span>
+            <span class="label">TXT</span>
+            <span class="desc">Plain text</span>
+          </button>
+          <button class="download-btn" onclick="downloadPng()">
+            <span class="icon">🖼️</span>
+            <span class="label">PNG</span>
+            <span class="desc">Image file</span>
+          </button>
+          <button class="download-btn" onclick="downloadHtml()">
+            <span class="icon">🎨</span>
+            <span class="label">HTML</span>
+            <span class="desc">With colors</span>
+          </button>
+        </div>
+      `;
+      container.appendChild(panel);
+
+      document.getElementById('content').innerHTML = '';
+      document.getElementById('content').appendChild(container);
+    }
+
+    function showError(title, message) {
       document.getElementById('content').innerHTML = `
         <div class="error">
-          <h2>😢 Oops!</h2>
+          <div class="error-icon">😢</div>
+          <h2>${title}</h2>
           <p>${message}</p>
-          <p style="margin-top: 20px;">
-            <a href="/" class="btn btn-primary">Create Your Own ASCII Art</a>
-          </p>
+          <a href="/" class="retry-btn">Create Your Own ASCII Art</a>
         </div>
       `;
     }
@@ -277,32 +507,120 @@
     function formatDate(timestamp) {
       if (!timestamp) return 'Unknown';
       const date = new Date(timestamp);
+      const now = new Date();
+      const diffMs = now - date;
+      const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+      
+      if (diffDays === 0) return 'Today';
+      if (diffDays === 1) return 'Yesterday';
+      if (diffDays < 7) return `${diffDays} days ago`;
       return date.toLocaleDateString();
     }
 
-    document.getElementById('copy-btn')?.addEventListener('click', async () => {
-      try {
-        await navigator.clipboard.writeText(asciiText);
-        const btn = document.getElementById('copy-btn');
-        btn.textContent = '✅ Copied!';
-        setTimeout(() => btn.textContent = '📋 Copy ASCII', 2000);
-      } catch (err) {
-        alert('Failed to copy');
-      }
-    });
+    function showToast(message) {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 2500);
+    }
 
-    document.getElementById('download-btn')?.addEventListener('click', () => {
-      const blob = new Blob([asciiText], { type: 'text/plain' });
+    async function copyToClipboard() {
+      try {
+        await navigator.clipboard.writeText(asciiData.text);
+        showToast('✅ Copied to clipboard!');
+      } catch (err) {
+        showToast('❌ Failed to copy');
+      }
+    }
+
+    function downloadTxt() {
+      const blob = new Blob([asciiData.text], { type: 'text/plain' });
+      downloadBlob(blob, 'ascii-art.txt');
+      showToast('📄 Downloading TXT...');
+    }
+
+    function downloadPng() {
+      const canvas = document.getElementById('export-canvas');
+      const ctx = canvas.getContext('2d');
+      
+      const lines = asciiData.text.split('\n');
+      const fontSize = 10;
+      const lineHeight = fontSize * 0.8;
+      
+      ctx.font = `${fontSize}px "Courier New", monospace`;
+      const maxWidth = Math.max(...lines.map(line => ctx.measureText(line).width));
+      
+      canvas.width = maxWidth + 40;
+      canvas.height = (lines.length * lineHeight) + 40;
+      
+      // Background
+      ctx.fillStyle = '#0a0a0a';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // Text
+      ctx.font = `${fontSize}px "Courier New", monospace`;
+      ctx.fillStyle = '#8b5cf6';
+      ctx.textBaseline = 'top';
+      
+      lines.forEach((line, i) => {
+        ctx.fillText(line, 20, 20 + (i * lineHeight));
+      });
+      
+      canvas.toBlob(blob => {
+        downloadBlob(blob, 'ascii-art.png');
+        showToast('🖼️ Downloading PNG...');
+      }, 'image/png');
+    }
+
+    function downloadHtml() {
+      const html = `<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>ASCII Art</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 40px;
+      background: #0a0a0a;
+      display: flex;
+      justify-content: center;
+    }
+    pre {
+      font-family: 'Courier New', monospace;
+      font-size: ${shareSettings.fontSize || 8}px;
+      line-height: ${shareSettings.lineHeight || 0.75};
+      color: #8b5cf6;
+      margin: 0;
+    }
+  </style>
+</head>
+<body>
+  <pre>${asciiData.html || escapeHtml(asciiData.text)}</pre>
+</body>
+</html>`;
+      
+      const blob = new Blob([html], { type: 'text/html' });
+      downloadBlob(blob, 'ascii-art.html');
+      showToast('🎨 Downloading HTML...');
+    }
+
+    function escapeHtml(text) {
+      const div = document.createElement('div');
+      div.textContent = text;
+      return div.innerHTML;
+    }
+
+    function downloadBlob(blob, filename) {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = 'shared-ascii-art.txt';
+      a.download = filename;
       a.click();
       URL.revokeObjectURL(url);
-    });
+    }
 
     loadShare();
   </script>
 </body>
 </html>
-
