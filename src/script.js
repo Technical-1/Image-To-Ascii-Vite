@@ -1076,3 +1076,4 @@ class ImageAsciiConverter {
 
 // Initialize the application
 new ImageAsciiConverter();
+
