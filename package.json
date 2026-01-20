@@ -1,5 +1,5 @@
 {
-  "name": "image-to-ascii-flash",
+  "name": "image-to-ascii-converter",
   "version": "1.0.0",
   "type": "module",
   "scripts": {
@@ -9,6 +9,9 @@
   },
   "devDependencies": {
     "vite": "^5.0.0"
+  },
+  "dependencies": {
+    "@upstash/redis": "^1.34.0",
+    "nanoid": "^5.0.0"
   }
 }
-
