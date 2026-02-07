@@ -5,49 +5,67 @@
 ```mermaid
 flowchart TB
     subgraph Client["Browser (Client-Side)"]
-        UI["User Interface<br/>index.html"]
-        JS["JavaScript Engine<br/>script.js"]
+        UI["User Interface<br/>index.html + style.css"]
+        Converter["ImageAsciiConverter Class<br/>script.js"]
         Canvas["HTML5 Canvas API"]
         FileAPI["File Reader API"]
         Clipboard["Clipboard API"]
+        Storage["localStorage<br/>(Settings Persistence)"]
     end
 
     subgraph UserInteraction["User Interaction"]
-        Upload["Image Upload"]
-        Controls["Dimension Controls<br/>(Width/Height Sliders)"]
+        Upload["Image Upload<br/>(Click or Drag & Drop)"]
+        Controls["Resolution / Brightness /<br/>Contrast / Color Mode"]
         CharSet["Character Set Selection"]
-        Actions["Copy/Download Actions"]
+        Presets["Quick Presets<br/>(Classic, Colored, Blocks, etc.)"]
+        Actions["Share / Copy / Export"]
     end
 
     subgraph Processing["Image Processing Pipeline"]
-        Load["Load Image"]
-        Resize["Resize to Target Dimensions"]
-        Extract["Extract Pixel Data"]
-        Grayscale["Convert to Grayscale"]
-        Map["Map Brightness to ASCII"]
-        Render["Render ASCII Output"]
+        Load["Load Image via FileReader"]
+        Resize["Draw to Canvas at Target Dimensions"]
+        Edge["Sobel Edge Detection<br/>(Optional)"]
+        BrightContrast["Brightness & Contrast Adjustment"]
+        Grayscale["Weighted Luminance<br/>(0.299R + 0.587G + 0.114B)"]
+        Map["Map Brightness to Characters"]
+        Colorize["Apply Color Mode<br/>(Grayscale / ANSI / RGB / Full RGB)"]
+        Render["Render ASCII Output<br/>(Auto-fit or Manual Font)"]
+    end
+
+    subgraph Server["Vercel Serverless"]
+        ShareAPI["api/share.js<br/>(POST: create, GET: retrieve)"]
+        Redis["Upstash Redis<br/>(30-day TTL)"]
+        ViewPage["view.html<br/>(Shared Art Viewer)"]
     end
 
     Upload --> FileAPI
     FileAPI --> Load
     Load --> Canvas
     Canvas --> Resize
-    Resize --> Extract
-    Extract --> Grayscale
+    Controls --> Resize
+    Resize --> Edge
+    Edge --> BrightContrast
+    BrightContrast --> Grayscale
     Grayscale --> Map
     CharSet --> Map
-    Controls --> Resize
-    Map --> Render
+    Presets --> Controls
+    Map --> Colorize
+    Colorize --> Render
     Render --> UI
     Actions --> Clipboard
+    Actions --> ShareAPI
+    ShareAPI --> Redis
+    Redis --> ViewPage
+    Converter --> Storage
 
     subgraph Build["Build & Deploy"]
-        Vite["Vite Build Tool"]
-        Vercel["Vercel Hosting"]
+        Vite["Vite 5 Build Tool"]
+        Vercel["Vercel Hosting + CDN"]
     end
 
-    JS --> Vite
+    UI --> Vite
     Vite --> Vercel
+    ShareAPI --> Vercel
 ```
 
 ## Data Flow
@@ -57,81 +75,115 @@ sequenceDiagram
     participant User
     participant FileInput
     participant FileReader
+    participant ImageAsciiConverter
     participant Canvas
-    participant AsciiEngine
     participant Preview
+    participant ShareAPI
+    participant Redis
 
-    User->>FileInput: Select image file
+    User->>FileInput: Select/drop image file
     FileInput->>FileReader: Read as DataURL
-    FileReader->>Preview: Display image thumbnail
-    FileReader->>AsciiEngine: Pass DataURL
+    FileReader->>Preview: Display image thumbnail + metadata
+    FileReader->>ImageAsciiConverter: Store DataURL
 
-    User->>AsciiEngine: Adjust width/height
-    User->>AsciiEngine: Select character set
+    User->>ImageAsciiConverter: Adjust settings (debounced 150ms)
+    ImageAsciiConverter->>Canvas: Draw image at target dimensions
+    Canvas->>ImageAsciiConverter: Return pixel data (RGBA)
 
-    AsciiEngine->>Canvas: Create temporary canvas
-    AsciiEngine->>Canvas: Draw image at target size
-    Canvas->>AsciiEngine: Return pixel data (RGBA)
-    AsciiEngine->>AsciiEngine: Convert RGB to grayscale
-    AsciiEngine->>AsciiEngine: Map brightness to characters
-    AsciiEngine->>Preview: Render ASCII text
+    Note over ImageAsciiConverter: Optional: Sobel edge detection
+    Note over ImageAsciiConverter: Apply brightness & contrast
+    Note over ImageAsciiConverter: Convert RGB → weighted grayscale
+    Note over ImageAsciiConverter: Map brightness → character index
+    Note over ImageAsciiConverter: Generate plain text + colored HTML
 
-    User->>Preview: Copy to clipboard
-    User->>Preview: Download as .txt
+    ImageAsciiConverter->>Preview: Render ASCII (auto-fit font size)
+    ImageAsciiConverter->>ImageAsciiConverter: Save settings to localStorage
+
+    User->>ShareAPI: Click Share button
+    ShareAPI->>Redis: Store ASCII + settings (nanoid key, 30-day TTL)
+    Redis-->>ShareAPI: Return share ID
+    ShareAPI-->>User: Copy share URL to clipboard
+
+    Note over User: Shared link opens view.html
+    User->>ShareAPI: GET /api/share?id=xxx
+    ShareAPI->>Redis: Retrieve data, increment views
+    Redis-->>ShareAPI: Return ASCII + settings
+    ShareAPI-->>User: Render in view.html with auto-fit
 ```
+
+## Component Descriptions
+
+### ImageAsciiConverter Class (`src/script.js`)
+- **Purpose**: Core application logic — image processing, ASCII conversion, UI setup, event handling, export functionality
+- **Key responsibilities**: File upload handling, Canvas-based pixel extraction, Sobel edge detection, brightness/contrast adjustment, grayscale luminance calculation, character mapping, color mode rendering (Grayscale/ANSI/RGB/Full RGB), auto-fit font sizing, settings persistence via localStorage, share/copy/export operations
+- **Pattern**: Single class with state management, debounced conversion, and DOM-based UI generation
+
+### Share API (`api/share.js`)
+- **Purpose**: Serverless endpoint for creating and retrieving shareable ASCII art links
+- **Key responsibilities**: POST to create a share (generates nanoid, stores in Redis with 30-day TTL), GET to retrieve a share (increments view counter)
+- **Dependencies**: `@upstash/redis`, `nanoid`
+
+### View Page (`public/view.html`)
+- **Purpose**: Standalone viewer for shared ASCII art with its own auto-fit logic and export buttons
+- **Key responsibilities**: Fetches share data from API, renders ASCII with original color/font settings, provides copy/TXT/PNG/HTML download, displays view count and dimensions
+
+### Main Entry (`index.html`)
+- **Purpose**: HTML shell with critical inline CSS for loading state, loads `script.js` as ES module
+- **Key responsibilities**: Provides `#app` mount point, shows loading spinner during module load
+
+### Styles (`src/style.css`)
+- **Purpose**: Full application layout and component styling
+- **Key responsibilities**: Sidebar + main content flexbox layout, dark theme with CSS variables, responsive breakpoints at 900px and 480px, custom scrollbar and range input styling
 
 ## Key Architectural Decisions
 
-### 1. 100% Client-Side Processing
-
-I chose to implement all image processing entirely in the browser using the HTML5 Canvas API. This decision was driven by several factors:
-
-- **Privacy**: User images never leave their device, which is important for potentially sensitive photos
+### 1. Client-Side Image Processing
+I chose to implement all image processing entirely in the browser using the HTML5 Canvas API.
+- **Privacy**: User images never leave their device
 - **Performance**: No network latency for conversions; results appear instantly
-- **Cost**: No server infrastructure to maintain or pay for
-- **Simplicity**: The entire application is static files that can be hosted anywhere
+- **Cost**: No server infrastructure for the core conversion
+- **Simplicity**: The conversion logic is self-contained in a single class
 
-### 2. Vite as Build Tool
+### 2. Hybrid Architecture for Sharing
+The only server-side component is the share API. I used Vercel Serverless Functions with Upstash Redis to add sharing without complicating the core client-side architecture. Shares expire after 30 days to keep storage costs minimal.
 
-I selected Vite over alternatives like Webpack or Parcel because:
+### 3. Class-Based State Management
+I encapsulated all application state in the `ImageAsciiConverter` class with localStorage persistence. This avoids framework dependencies while keeping state organized and recoverable across sessions.
 
-- **Speed**: Vite's native ES modules approach provides near-instant hot module replacement during development
-- **Simplicity**: Minimal configuration required for a vanilla JavaScript project
-- **Modern defaults**: Built-in support for ES modules, CSS imports, and asset handling
-
-### 3. No Framework Dependency
-
+### 4. No Framework Dependency
 I deliberately avoided React, Vue, or other frameworks because:
+- The application has a single view with manageable complexity
+- The final JavaScript bundle stays extremely lightweight
+- Anyone can read and modify the code without framework knowledge
 
-- **Project scope**: The application is simple enough that vanilla JavaScript handles all requirements
-- **Bundle size**: The final build is extremely lightweight (~5KB of JavaScript)
-- **Learning curve**: Anyone can read and modify the code without framework knowledge
+### 5. Debounced Real-Time Updates
+I implemented a 150ms debounce on all setting changes to balance responsiveness with performance. This prevents excessive re-renders during rapid slider movements while keeping the feel interactive.
 
-### 4. Debounced Real-Time Updates
+### 6. Dual Color Output Pipeline
+The converter generates both plain text and colored HTML in a single pass. This enables:
+- Grayscale mode using `textContent` (fast, no DOM overhead)
+- Color modes using `innerHTML` with per-character `<span>` elements
+- Export functions can choose the appropriate format without re-conversion
 
-I implemented a 300ms debounce on slider inputs to balance responsiveness with performance:
-
-- Users see immediate feedback when adjusting settings
-- Prevents excessive re-renders during rapid slider movements
-- Ensures smooth UX even with large output dimensions
-
-### 5. Vercel Deployment with SPA Rewrites
-
-I configured Vercel with URL rewrites to handle the single-page application pattern, ensuring direct links work correctly and the app behaves as expected when refreshed.
+### 7. Auto-Fit Font Sizing
+Rather than requiring users to manually set font sizes, the "Fit to Container" mode calculates the optimal font size based on the viewport dimensions and ASCII grid size. This ensures the output always fills the available space.
 
 ## Component Responsibilities
 
 | Component | Responsibility |
 |-----------|---------------|
-| `index.html` | Structure, controls layout, character set definitions |
-| `script.js` | Image loading, Canvas manipulation, ASCII conversion algorithm, clipboard/download handling |
-| `style.css` | Visual design, responsive layout, animations |
+| `index.html` | Entry point, critical CSS, loading state |
+| `src/script.js` | ImageAsciiConverter class — all conversion and UI logic |
+| `src/style.css` | Layout, theming, responsive design |
+| `api/share.js` | Share creation/retrieval via Upstash Redis |
+| `public/view.html` | Standalone shared art viewer with export |
 | `vite.config.js` | Build configuration, asset handling |
-| `vercel.json` | Deployment settings, URL rewrites |
+| `vercel.json` | Deployment settings, API routing, CORS headers |
 
 ## Limitations
 
-- **Large images**: Very high-resolution source images may cause brief processing delays
-- **Character density**: ASCII art resolution is inherently limited by character dimensions
+- **Large images**: Very high-resolution source images may cause brief processing delays during initial load
+- **Color mode performance**: RGB/Full RGB modes generate a `<span>` per character, which can be slow at high resolutions
+- **Share size limits**: Very large ASCII outputs may approach Redis value size limits
+- **No animation**: GIF files extract a single frame only
 - **Mobile typing**: Custom character input can be awkward on mobile keyboards
-- **No persistence**: Settings and uploads are not saved between sessions

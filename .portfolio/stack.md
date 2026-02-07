@@ -1,13 +1,22 @@
 # Technology Stack
 
+## Core Technologies
+
+| Category | Technology | Version | Purpose |
+|----------|------------|---------|---------|
+| Language | JavaScript (ES6+) | - | Application logic, DOM manipulation, Canvas processing |
+| Markup | HTML5 | - | Application structure, semantic markup |
+| Styling | CSS3 | - | Dark theme, flexbox layout, responsive design |
+| Build Tool | Vite | ^5.0.0 | Development server and production bundler |
+| Runtime | Node.js | 18+ | Build process and serverless functions |
+
 ## Frontend
 
-| Technology | Version | Purpose |
-|------------|---------|---------|
-| HTML5 | - | Application structure and semantic markup |
-| CSS3 | - | Styling, animations, responsive design |
-| JavaScript (ES6+) | - | Application logic, DOM manipulation |
-| HTML5 Canvas API | - | Image processing and pixel manipulation |
+- **Framework**: None (vanilla JavaScript)
+- **Architecture**: Single `ImageAsciiConverter` class with DOM-based UI generation
+- **State Management**: Class properties with localStorage persistence
+- **Styling**: CSS custom properties (CSS variables) for theming, flexbox layout
+- **Build Tool**: Vite 5 with ES module support
 
 ### Why Vanilla JavaScript?
 
@@ -18,28 +27,20 @@ I chose vanilla JavaScript over frameworks like React or Vue because:
 3. **Maintainability**: Anyone familiar with JavaScript can understand and modify the code
 4. **Learning demonstration**: Shows proficiency with core web APIs without framework abstraction
 
-## Build Tools
+## Backend
 
-| Tool | Version | Purpose |
-|------|---------|---------|
-| Vite | ^5.0.0 | Development server and production bundler |
-| Node.js | 18+ | JavaScript runtime for build process |
-| npm | 9+ | Package management |
+- **Runtime**: Vercel Serverless Functions (Node.js)
+- **API Style**: REST (single `/api/share` endpoint with GET/POST)
+- **Database**: Upstash Redis (key-value store with TTL)
 
-### Why Vite?
-
-I selected Vite as the build tool because:
-
-1. **Development speed**: Native ES modules mean near-instant server startup
-2. **Hot Module Replacement**: Changes reflect immediately without full page reload
-3. **Minimal configuration**: Works out of the box for vanilla JS projects
-4. **Optimized builds**: Automatic code splitting and minification for production
+The backend exists solely for the sharing feature. The core image-to-ASCII conversion is entirely client-side.
 
 ## Infrastructure & Deployment
 
 | Service | Purpose |
 |---------|---------|
-| Vercel | Hosting and continuous deployment |
+| Vercel | Hosting, serverless functions, CDN, CI/CD |
+| Upstash Redis | Share link storage with 30-day TTL |
 | GitHub | Source code repository |
 
 ### Deployment Configuration
@@ -47,70 +48,74 @@ I selected Vite as the build tool because:
 The `vercel.json` file configures:
 - Build command: `npm run build`
 - Output directory: `dist/`
-- SPA rewrites: All routes redirect to `index.html`
-
-### Why Vercel?
-
-I chose Vercel for deployment because:
-
-1. **Zero configuration**: Automatic detection of Vite projects
-2. **Global CDN**: Fast content delivery worldwide
-3. **Free tier**: Suitable for personal projects and portfolios
-4. **Git integration**: Automatic deployments on push to main branch
+- API route rewrites: `/api/*` mapped to serverless functions
+- CORS headers for API endpoints
 
 ## Browser APIs Used
 
 | API | Purpose |
 |-----|---------|
+| Canvas API | Image resizing, pixel extraction, Sobel edge detection |
 | File API | Reading uploaded image files |
 | FileReader API | Converting files to data URLs |
-| Canvas API | Image resizing and pixel extraction |
 | Clipboard API | Copy-to-clipboard functionality |
-| Blob API | Generating downloadable text files |
+| Blob API | Generating downloadable TXT, PNG, and HTML files |
+| localStorage | Persisting user settings across sessions |
 
 ## Dependencies
 
 ### Production Dependencies
 
-None. The application runs entirely with native browser APIs.
+| Package | Version | Purpose |
+|---------|---------|---------|
+| `@upstash/redis` | ^1.34.0 | Redis client for share link storage (serverless function only) |
+| `nanoid` | ^5.0.0 | Unique ID generation for share links |
 
 ### Development Dependencies
 
 | Package | Version | Purpose |
 |---------|---------|---------|
-| vite | ^5.0.0 | Build tool and development server |
+| `vite` | ^5.0.0 | Build tool and development server |
 
 ### Why Minimal Dependencies?
 
 I intentionally kept dependencies to the absolute minimum because:
 
 1. **Security**: Fewer dependencies means smaller attack surface
-2. **Maintenance**: No need to track and update multiple packages
-3. **Bundle size**: The final build is extremely small
+2. **Maintenance**: No need to track and update many packages
+3. **Bundle size**: The client-side build is extremely small
 4. **Reliability**: No risk of dependency conflicts or breaking changes
+
+The two production dependencies (`@upstash/redis` and `nanoid`) are only used in the serverless function, not in the client bundle.
 
 ## Performance Considerations
 
 ### Image Processing
+- Images are processed at the target ASCII dimensions (not full resolution), keeping Canvas operations fast
+- Edge detection uses a Sobel filter with pre-allocated typed arrays
+- Debouncing (150ms) prevents excessive re-renders during slider adjustments
+- Brightness/contrast adjustments are inlined in the pixel loop to avoid extra passes
 
-- Images are processed at the target ASCII dimensions (10-200 characters), not at full resolution
-- Canvas operations are synchronous but fast due to small dimensions
-- Debouncing prevents excessive re-renders during slider adjustments
+### Rendering
+- Grayscale mode uses `textContent` (no DOM parsing overhead)
+- Color modes generate inline-styled `<span>` elements per character
+- Auto-fit font sizing calculates once per render, not per frame
+- Canvas-based PNG export handles color data in a single pass
 
 ### Load Time
-
-- Total JavaScript: ~5KB minified
-- CSS: ~8KB minified
+- Critical CSS inlined in `index.html` for instant loading state
+- Total client JavaScript: lightweight single module
 - No external fonts or large assets
 - First Contentful Paint: < 1 second on average connections
 
 ## Browser Support
 
 The application works in all modern browsers that support:
-- ES6+ JavaScript
-- HTML5 Canvas
+- ES6+ JavaScript (ES modules)
+- HTML5 Canvas with `willReadFrequently` optimization hint
 - CSS Grid and Flexbox
 - Clipboard API (for copy functionality)
+- localStorage
 
 Tested browsers:
 - Chrome 90+

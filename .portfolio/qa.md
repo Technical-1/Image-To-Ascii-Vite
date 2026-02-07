@@ -1,71 +1,73 @@
-# Project Q&A
+# Project Q&A Knowledge Base
 
-## Project Overview
+## Overview
 
-Image to ASCII Converter is a web-based tool that transforms any image into ASCII art entirely within the browser. I built this to solve the common need for quick ASCII art generation without requiring software installation, server uploads, or privacy concerns. The target users are developers looking to add ASCII art to documentation or code comments, digital artists exploring text-based aesthetics, and anyone who wants to create retro-style visual representations of their images for social media, READMEs, or creative projects.
+Image to ASCII Converter is a web application that transforms any image into ASCII art directly in the browser. I built it to provide quick, private ASCII art generation with advanced controls for color, contrast, edge detection, and sharing — all without requiring software installation or server uploads. The target users are developers adding ASCII art to documentation, digital artists exploring text-based aesthetics, and anyone creating retro-style visual representations for social media, READMEs, or creative projects.
 
 ## Key Features
 
-### Real-Time Preview
-As users adjust the width, height, or character set, the ASCII output updates instantly. I implemented a 300ms debounce to balance responsiveness with performance, ensuring smooth interaction even with larger output dimensions.
-
-### Multiple Character Sets
-I included five preset character sets (Standard, Extended, Simple, Blocks, and Detailed) to give users immediate options for different visual styles. Each set is ordered by visual density, from darkest to lightest characters, ensuring accurate brightness mapping.
-
-### Custom Character Input
-Beyond presets, users can define their own character sets. This allows for creative experimentation with emoji, symbols, or any Unicode characters the user wants to try.
-
-### Universal Image Support
-The application accepts PNG, JPG, JPEG, GIF, BMP, WEBP, and SVG files. I used the native HTML5 file input with `accept="image/*"` to leverage browser-level format detection.
-
-### Copy and Download
-Users can copy the ASCII output directly to their clipboard or download it as a `.txt` file. I implemented these using the Clipboard API and Blob API respectively, with visual feedback on the copy button to confirm success.
-
-### Privacy-First Design
-All processing happens client-side. Images are never uploaded to any server. This was a deliberate architectural choice to ensure users feel safe converting potentially sensitive or personal images.
+- **Real-Time Conversion**: Adjusting any setting (resolution, brightness, contrast, character set, color mode) updates the ASCII output instantly with a 150ms debounce for smooth interaction
+- **Color Modes**: Four rendering modes — Grayscale (plain text), ANSI 256-color, RGB per-character coloring, and Full RGB with background tinting
+- **Edge Detection**: Optional Sobel filter that emphasizes outlines and contours in the ASCII output
+- **Shareable Links**: One-click sharing generates a unique URL backed by Upstash Redis with a 30-day expiration. The shared view page includes its own export buttons and view counter
+- **Multi-Format Export**: Copy to clipboard, download as TXT, render to PNG (preserving colors), or export as standalone HTML
+- **Quick Presets**: Six one-click presets (Classic, Colored, Blocks, Matrix, High Contrast, Inverted) that configure multiple settings at once
+- **Persistent Settings**: All preferences automatically saved to localStorage and restored on next visit
 
 ## Technical Highlights
 
-### Grayscale Conversion Algorithm
-I implemented the standard luminance formula (0.299R + 0.587G + 0.114B) for RGB to grayscale conversion. This weighted average accounts for human perception, where green appears brighter than red, which appears brighter than blue.
+### Sobel Edge Detection
+I implemented a Sobel filter that runs on the downscaled Canvas pixel data. The 3x3 convolution kernels detect horizontal and vertical gradients, and the combined magnitude is added to the original pixel brightness. This creates ASCII art that emphasizes edges and outlines while preserving the overall tonal structure. The filter operates on the already-downscaled image, so performance impact is minimal.
 
-### Canvas-Based Pixel Extraction
-Rather than processing images at full resolution, I draw the image to a canvas at the target ASCII dimensions. This means a 4000x3000 pixel image becomes, say, 100x60 pixels before any processing begins, making the conversion extremely fast.
+### Dual-Output Pipeline
+The `pixelsToAscii` method generates both plain text and colored HTML in a single pixel-processing loop. Grayscale mode renders with `textContent` (no DOM parsing), while color modes use `innerHTML` with per-character `<span>` elements. This dual output means export functions can immediately use the appropriate format without re-processing.
 
-### Responsive Design Challenge
-ASCII art has a fixed aspect ratio based on character dimensions. I solved the display challenge by using a monospace font with `white-space: pre` to preserve spacing, contained within a scrollable preview area that works on both desktop and mobile.
+### Auto-Fit Font Sizing
+The "Fit to Container" feature calculates the optimal font size by dividing available viewport dimensions by the ASCII grid dimensions (accounting for monospace character width ratio of ~0.6). This ensures the output always fills the screen regardless of resolution settings or window size.
 
-### State Management Without a Framework
-I managed application state using simple module-scoped variables (`currentImage`, `currentAscii`, etc.) rather than introducing a state management library. For this application's complexity level, this approach keeps the code readable and maintainable.
+### Class-Based Architecture
+I refactored the original module-scoped functions into an `ImageAsciiConverter` class. This encapsulates all state (current image, settings, debounce timer) and provides clean separation between image processing, UI management, and export functionality. Settings persist via localStorage with a defaults-merge pattern.
+
+### Serverless Share System
+The share feature uses a minimal serverless function (`api/share.js`) with Upstash Redis. POST creates a new entry with a nanoid-generated key and 30-day TTL; GET retrieves the data and increments a view counter. The shared viewer (`view.html`) is a fully self-contained page with its own auto-fit logic and export buttons.
+
+## Development Story
+
+- **Hardest Part**: Getting the color modes to work correctly across the conversion pipeline, export functions, and shared viewer. Each output format (clipboard text, PNG canvas, HTML download, shared view) needs different handling of the color data.
+- **Lessons Learned**: The percentage-based resolution system works much better than fixed width/height sliders. Users intuitively understand "50% of original" better than "set width to 200 characters."
+- **Future Plans**: Animated GIF support (multi-frame), WebWorker-based processing for very large images, and a gallery of community-shared creations.
 
 ## Frequently Asked Questions
 
-### Q: Why does my ASCII art look stretched?
-A: Characters are taller than they are wide, so ASCII art naturally appears stretched horizontally. I recommend using width values roughly 2x your height value for proportional results. For example, if you want a square-looking output, try 100 width x 50 height.
+### How does the image conversion work?
+The image is drawn to an HTML5 Canvas at the target ASCII dimensions (e.g., 100x50 characters). I then extract pixel data, optionally apply Sobel edge detection, adjust brightness/contrast, convert each pixel to a weighted grayscale value (0.299R + 0.587G + 0.114B), and map that brightness to a character from the selected set. In color modes, each character also gets the original pixel's color as an inline style.
 
-### Q: Can I use colored ASCII output?
-A: The current version produces monochrome ASCII text. Colored ASCII would require HTML/CSS output rather than plain text, which would make the copy/download functionality more complex. I prioritized plain text compatibility for this version.
+### Why does my ASCII art look stretched?
+Characters are taller than they are wide, so ASCII art naturally appears stretched horizontally. The percentage-based resolution system automatically accounts for this by halving the height. For custom dimensions, I recommend using width values roughly 2x your height value for proportional results.
 
-### Q: Why is the output different from other ASCII converters?
-A: Different converters use different character sets and brightness mapping algorithms. My implementation uses linear mapping from grayscale values to character indices. Some converters use edge detection or dithering, which produces different results.
+### What are the color modes?
+- **Grayscale**: Plain text with green-on-black terminal aesthetic
+- **ANSI**: Maps pixel colors to the nearest ANSI 256-color palette (6x6x6 color cube)
+- **RGB**: Each character gets the exact pixel color via inline CSS
+- **Full RGB**: Like RGB, but also adds a semi-transparent background tint per character for richer output
 
-### Q: How do I get the best results?
-A: High-contrast images with clear subjects work best. Try increasing the width to 100-150 characters for more detail. The "Detailed" character set provides the finest gradations, while "Blocks" creates a bolder, more graphic look.
+### How does sharing work?
+Clicking "Share" sends the ASCII output and current settings to a serverless API. The API stores the data in Upstash Redis with a unique nanoid-generated ID and 30-day expiration. The generated URL points to `view.html?id=xxx`, which fetches and renders the shared art with its own auto-fit sizing and export buttons.
 
-### Q: Can I convert animated GIFs?
-A: The converter extracts a single frame from GIFs. Full animation support would require significantly more complex handling and larger output files. This could be a future enhancement.
+### How does edge detection work?
+I implemented a Sobel filter — a classic image processing technique that uses two 3x3 convolution kernels to detect horizontal and vertical brightness gradients. The gradient magnitude is added to the original pixel brightness, which makes edges appear as brighter (more detailed) characters in the ASCII output.
 
-### Q: Is there a maximum image size?
-A: There's no hard limit, but very large images (10+ megapixels) may cause brief delays during the initial load. The actual ASCII conversion is fast because it works on the downscaled canvas, not the original resolution.
+### Can I use colored ASCII output?
+Yes! The app supports four color modes. RGB and Full RGB modes produce colored HTML output that preserves in the PNG and HTML exports. The copy-to-clipboard function outputs plain text regardless of color mode, since terminal/text contexts don't support inline colors.
 
-### Q: Why did you build this as a static site?
-A: A serverless approach means zero hosting costs, unlimited scalability, and maximum privacy for users. There's no technical reason this conversion needs a server, so I designed it to work entirely in the browser.
+### Why did you choose vanilla JavaScript over a framework?
+The application has a single view with straightforward state management. A framework would add bundle size and complexity without meaningful benefit. The `ImageAsciiConverter` class provides clean organization, and the total client-side JavaScript stays extremely lightweight.
 
-### Q: Can I integrate this into my own project?
-A: The core conversion logic in `script.js` (specifically the `imageToAscii` function) is self-contained and could be extracted for use in other projects. The function takes a data URL, dimensions, and character set, returning an array of ASCII lines.
+### Can I convert animated GIFs?
+The converter extracts a single frame from GIFs. Full animation support would require significantly more complex handling and larger output. This could be a future enhancement.
 
-### Q: What browsers are supported?
-A: All modern browsers (Chrome, Firefox, Safari, Edge) from the last 2-3 years are supported. The application uses standard Web APIs without polyfills, so very old browsers may not work correctly.
+### What browsers are supported?
+All modern browsers (Chrome 90+, Firefox 88+, Safari 14+, Edge 90+) are supported. The application uses standard Web APIs (Canvas, Clipboard, localStorage, ES modules) without polyfills.
 
-### Q: How do I report bugs or suggest features?
-A: The project is hosted on GitHub. You can open an issue or pull request there. I'm particularly interested in hearing about edge cases with specific image types or character sets that produce unexpected results.
+### How do I report bugs or suggest features?
+The project is hosted on GitHub. You can open an issue or pull request at [github.com/Technical-1/Image-To-Ascii-Vite](https://github.com/Technical-1/Image-To-Ascii-Vite).
