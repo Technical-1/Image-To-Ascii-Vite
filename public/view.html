@@ -343,6 +343,7 @@
   <div class="toast" id="toast"></div>
   <canvas id="export-canvas"></canvas>
 
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/3.2.4/purify.min.js"></script>
   <script>
     let asciiData = { text: '', html: '' };
     let shareSettings = {};
@@ -384,7 +385,7 @@
       container.id = 'ascii-display';
       
       if (asciiData.html && shareSettings.colorMode !== 'grayscale') {
-        container.innerHTML = asciiData.html;
+        container.innerHTML = DOMPurify.sanitize(asciiData.html, { ALLOWED_TAGS: ['span'], ALLOWED_ATTR: ['style'] });
       } else {
         container.textContent = asciiData.text;
       }
