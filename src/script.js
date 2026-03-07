@@ -303,14 +303,14 @@ class ImageAsciiConverter {
                             <span class="output-title">ASCII Output</span>
                         </div>
                         <div class="toolbar-right">
-                            <button class="tool-btn share-btn" id="share-btn" disabled>🔗 Share</button>
-                            <button class="tool-btn" id="copy-btn" disabled>📋 Copy</button>
-                            <button class="tool-btn" id="export-txt-btn" disabled>📄 TXT</button>
-                            <button class="tool-btn" id="export-png-btn" disabled>🖼️ PNG</button>
-                            <button class="tool-btn" id="export-html-btn" disabled>🌐 HTML</button>
+                            <button class="tool-btn share-btn" id="share-btn" disabled aria-label="Share ASCII art">🔗 Share</button>
+                            <button class="tool-btn" id="copy-btn" disabled aria-label="Copy to clipboard">📋 Copy</button>
+                            <button class="tool-btn" id="export-txt-btn" disabled aria-label="Export as text file">📄 TXT</button>
+                            <button class="tool-btn" id="export-png-btn" disabled aria-label="Export as PNG image">🖼️ PNG</button>
+                            <button class="tool-btn" id="export-html-btn" disabled aria-label="Export as HTML file">🌐 HTML</button>
                         </div>
                     </div>
-                    <div class="ascii-container" id="ascii-output">
+                    <div class="ascii-container" id="ascii-output" role="img" aria-label="ASCII art output">
                         <p class="placeholder">Upload an image to see the ASCII art preview</p>
                     </div>
                 </main>
