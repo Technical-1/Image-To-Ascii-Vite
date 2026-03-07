@@ -1096,15 +1096,16 @@ class ImageAsciiConverter {
     }
 
     downloadBlob(blob, filename) {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-        a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-}
+        const url = URL.createObjectURL(blob);
+        try {
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+        } finally {
+            URL.revokeObjectURL(url);
+        }
+    }
 
     updateSliderMax() {
         if (!this.currentImage) return;
