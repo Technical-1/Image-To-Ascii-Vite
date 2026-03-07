@@ -1039,6 +1039,10 @@ class ImageAsciiConverter {
 
         // Download
         canvas.toBlob((blob) => {
+            if (!blob) {
+                this.showToast('PNG export failed', 'error');
+                return;
+            }
             this.downloadBlob(blob, `ascii-art-${Date.now()}.png`);
             this.showToast('Saved as PNG!', 'success');
         });

@@ -546,8 +546,9 @@
       });
       
       canvas.toBlob(blob => {
+        if (!blob) { showToast('PNG export failed'); return; }
         downloadBlob(blob, 'ascii-art.png');
-        showToast('🖼️ Downloading PNG...');
+        showToast('Downloading PNG...');
       }, 'image/png');
     }
 
