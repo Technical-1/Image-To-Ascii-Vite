@@ -19,6 +19,12 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === 'POST') {
+      // Enforce 2MB payload limit
+      const bodyStr = JSON.stringify(req.body);
+      if (bodyStr.length > 2_000_000) {
+        return res.status(413).json({ error: 'Payload too large. Maximum size is 2MB.' });
+      }
+
       // Create a new share
       const { ascii, settings, preview } = req.body;
 
