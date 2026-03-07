@@ -403,16 +403,32 @@
 
       // Show stats
       const stats = document.getElementById('stats');
-      stats.innerHTML = `
-        <div class="stat">
-          <span>👁️</span>
-          <span class="stat-value">${data.views || 1}</span>
-        </div>
-        <div class="stat">
-          <span>📐</span>
-          <span class="stat-value">${shareSettings.width || '?'}×${shareSettings.height || '?'}</span>
-        </div>
-      `;
+      stats.textContent = '';
+
+      const viewsStat = document.createElement('div');
+      viewsStat.className = 'stat';
+      const viewsIcon = document.createElement('span');
+      viewsIcon.textContent = '👁️';
+      const viewsValue = document.createElement('span');
+      viewsValue.className = 'stat-value';
+      viewsValue.textContent = parseInt(data.views, 10) || 1;
+      viewsStat.appendChild(viewsIcon);
+      viewsStat.appendChild(viewsValue);
+
+      const dimStat = document.createElement('div');
+      dimStat.className = 'stat';
+      const dimIcon = document.createElement('span');
+      dimIcon.textContent = '📐';
+      const dimValue = document.createElement('span');
+      dimValue.className = 'stat-value';
+      const w = parseInt(shareSettings.width, 10) || '?';
+      const h = parseInt(shareSettings.height, 10) || '?';
+      dimValue.textContent = w + '×' + h;
+      dimStat.appendChild(dimIcon);
+      dimStat.appendChild(dimValue);
+
+      stats.appendChild(viewsStat);
+      stats.appendChild(dimStat);
       stats.classList.remove('hidden');
 
       // Show floating bar
