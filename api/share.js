@@ -1,10 +1,16 @@
 import { Redis } from '@upstash/redis';
+import { Ratelimit } from '@upstash/ratelimit';
 import { nanoid } from 'nanoid';
 
 // Initialize Redis - handle both Vercel KV naming and Upstash naming
 const redis = new Redis({
   url: process.env.KV_REST_API_URL || process.env.UPSTASH_REDIS_REST_URL,
   token: process.env.KV_REST_API_TOKEN || process.env.UPSTASH_REDIS_REST_TOKEN,
+});
+
+const ratelimit = new Ratelimit({
+  redis,
+  limiter: Ratelimit.slidingWindow(10, '1 m'),
 });
 
 export default async function handler(req, res) {
@@ -19,6 +25,13 @@ export default async function handler(req, res) {
 
   try {
     if (req.method === 'POST') {
+      // Rate limit by IP
+      const ip = req.headers['x-forwarded-for']?.split(',')[0]?.trim() || '127.0.0.1';
+      const { success } = await ratelimit.limit(ip);
+      if (!success) {
+        return res.status(429).json({ error: 'Too many requests. Try again later.' });
+      }
+
       // Enforce 2MB payload limit
       const bodyStr = JSON.stringify(req.body);
       if (bodyStr.length > 2_000_000) {
