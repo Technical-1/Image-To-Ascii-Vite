@@ -613,7 +613,10 @@ class ImageAsciiConverter {
         } catch (error) {
             console.error('Conversion error:', error);
             const output = document.getElementById('ascii-output');
-            output.innerHTML = `<p class="placeholder error">Error: ${error.message}</p>`;
+            const p = document.createElement('p');
+            p.className = 'placeholder error';
+            p.textContent = `Error: ${error.message}`;
+            output.replaceChildren(p);
         }
     }
 
