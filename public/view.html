@@ -524,12 +524,12 @@
       const canvas = document.getElementById('export-canvas');
       const ctx = canvas.getContext('2d');
       
-      const lines = asciiData.text.split('\n');
+      const lines = asciiData.text.split('\n').filter(l => l.length > 0);
       const fontSize = 12;
       const lineHeight = fontSize * 0.8;
-      
+
       ctx.font = `${fontSize}px "Courier New", monospace`;
-      const maxWidth = Math.max(...lines.map(line => ctx.measureText(line).width));
+      const maxWidth = lines.length > 0 ? Math.max(...lines.map(line => ctx.measureText(line).width)) : 100;
       
       canvas.width = maxWidth + 40;
       canvas.height = (lines.length * lineHeight) + 40;

@@ -988,8 +988,8 @@ class ImageAsciiConverter {
         ctx.font = `${fontSize}px 'Courier New', monospace`;
 
         // Calculate dimensions
-        const lines = this.currentAscii.text.split('\n');
-        const maxWidth = Math.max(...lines.map(line => ctx.measureText(line).width));
+        const lines = this.currentAscii.text.split('\n').filter(l => l.length > 0);
+        const maxWidth = lines.length > 0 ? Math.max(...lines.map(line => ctx.measureText(line).width)) : 100;
         const canvasHeight = lines.length * fontSize * lineHeight;
 
         canvas.width = maxWidth + 40;
