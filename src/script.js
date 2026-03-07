@@ -1009,7 +1009,7 @@ class ImageAsciiConverter {
         if (!this.currentAscii) return;
 
         const { fontSize, lineHeight } = this.settings;
-        const imageName = this.currentImage?.name || 'ASCII Art';
+        const imageName = this.escapeHtml(this.currentImage?.name || 'ASCII Art');
 
         const html = `<!DOCTYPE html>
 <html lang="en">
