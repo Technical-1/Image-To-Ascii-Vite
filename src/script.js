@@ -540,11 +540,28 @@ class ImageAsciiConverter {
             const imageInfo = document.getElementById('image-info');
             
             previewImg.onload = () => {
-                imageInfo.innerHTML = `
-                    <span><strong>File:</strong> ${file.name}</span>
-                    <span><strong>Size:</strong> ${this.formatFileSize(file.size)}</span>
-                    <span><strong>Dimensions:</strong> ${previewImg.naturalWidth} × ${previewImg.naturalHeight}</span>
-                `;
+                imageInfo.textContent = '';
+
+                const fileSpan = document.createElement('span');
+                const fileLabel = document.createElement('strong');
+                fileLabel.textContent = 'File: ';
+                fileSpan.appendChild(fileLabel);
+                fileSpan.appendChild(document.createTextNode(file.name));
+                imageInfo.appendChild(fileSpan);
+
+                const sizeSpan = document.createElement('span');
+                const sizeLabel = document.createElement('strong');
+                sizeLabel.textContent = 'Size: ';
+                sizeSpan.appendChild(sizeLabel);
+                sizeSpan.appendChild(document.createTextNode(this.formatFileSize(file.size)));
+                imageInfo.appendChild(sizeSpan);
+
+                const dimSpan = document.createElement('span');
+                const dimLabel = document.createElement('strong');
+                dimLabel.textContent = 'Dimensions: ';
+                dimSpan.appendChild(dimLabel);
+                dimSpan.appendChild(document.createTextNode(`${previewImg.naturalWidth} × ${previewImg.naturalHeight}`));
+                imageInfo.appendChild(dimSpan);
                 
                 this.currentImage = {
                     width: previewImg.naturalWidth,
