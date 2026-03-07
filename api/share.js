@@ -55,8 +55,8 @@ export default async function handler(req, res) {
       // Retrieve a share
       const { id } = req.query;
 
-      if (!id) {
-        return res.status(400).json({ error: 'Share ID is required' });
+      if (!id || !/^[A-Za-z0-9_-]{10}$/.test(id)) {
+        return res.status(400).json({ error: 'Invalid share ID' });
       }
 
       const rawData = await redis.get(`img:${id}`);
