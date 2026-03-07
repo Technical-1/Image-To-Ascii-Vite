@@ -475,13 +475,27 @@
     }
 
     function showError(message) {
-      document.getElementById('content').innerHTML = `
-        <div class="error">
-          <h2>😢 Oops!</h2>
-          <p>${message}</p>
-          <a href="/" class="create-btn">Create Your Own ASCII Art</a>
-        </div>
-      `;
+      const content = document.getElementById('content');
+      content.textContent = '';
+
+      const errorDiv = document.createElement('div');
+      errorDiv.className = 'error';
+
+      const h2 = document.createElement('h2');
+      h2.textContent = 'Oops!';
+
+      const p = document.createElement('p');
+      p.textContent = message;
+
+      const a = document.createElement('a');
+      a.href = '/';
+      a.className = 'create-btn';
+      a.textContent = 'Create Your Own ASCII Art';
+
+      errorDiv.appendChild(h2);
+      errorDiv.appendChild(p);
+      errorDiv.appendChild(a);
+      content.appendChild(errorDiv);
     }
 
     function showToast(message) {
