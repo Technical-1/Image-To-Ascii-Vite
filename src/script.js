@@ -1,6 +1,15 @@
 // Import CSS
 import './style.css';
 
+// Core conversion algorithms (shared with the test suite).
+import {
+    adjustBrightnessContrast,
+    weightedLuminance,
+    charForBrightness,
+    ansiColor,
+    applyEdgeDetection,
+} from './ascii-core.js';
+
 /**
  * Image to ASCII Converter
  * Matching features with Video ASCII Converter
@@ -706,50 +715,15 @@ class ImageAsciiConverter {
     }
 
     applyEdgeDetection(imageData) {
-        const width = imageData.width;
-        const height = imageData.height;
-        const data = imageData.data;
-        const tempData = new Uint8ClampedArray(data);
-        const threshold = 50;
-
-        const sobelX = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
-        const sobelY = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
-
-        for (let y = 1; y < height - 1; y++) {
-            for (let x = 1; x < width - 1; x++) {
-                let gx = 0, gy = 0;
-
-                for (let ky = -1; ky <= 1; ky++) {
-                    for (let kx = -1; kx <= 1; kx++) {
-                        const idx = ((y + ky) * width + (x + kx)) * 4;
-                        const brightness = (tempData[idx] + tempData[idx + 1] + tempData[idx + 2]) / 3;
-                        
-                        const kernelIdx = (ky + 1) * 3 + (kx + 1);
-                        gx += brightness * sobelX[kernelIdx];
-                        gy += brightness * sobelY[kernelIdx];
-                    }
-                }
-
-                const magnitude = Math.sqrt(gx * gx + gy * gy);
-                const idx = (y * width + x) * 4;
-
-                if (magnitude > threshold) {
-                    data[idx] = Math.min(255, data[idx] + magnitude * 0.5);
-                    data[idx + 1] = Math.min(255, data[idx + 1] + magnitude * 0.5);
-                    data[idx + 2] = Math.min(255, data[idx + 2] + magnitude * 0.5);
-                }
-            }
-        }
+        return applyEdgeDetection(imageData);
     }
 
     adjustBrightnessContrast(r, g, b) {
-        const adjust = (value) => {
-            let adjusted = ((value / 255 - 0.5) * this.settings.contrast + 0.5) * 255;
-            adjusted = adjusted * this.settings.brightness;
-            return Math.max(0, Math.min(255, adjusted));
-        };
-
-        return [adjust(r), adjust(g), adjust(b)];
+        return adjustBrightnessContrast(
+            r, g, b,
+            this.settings.brightness,
+            this.settings.contrast,
+        );
     }
 
     pixelsToAscii(imageData) {
@@ -777,11 +751,10 @@ class ImageAsciiConverter {
                 [r, g, b] = this.adjustBrightnessContrast(r, g, b);
 
                 // Calculate brightness using weighted formula
-                const brightness = 0.299 * r + 0.587 * g + 0.114 * b;
+                const brightness = weightedLuminance(r, g, b);
 
                 // Map brightness to character
-                const charIndex = Math.floor((brightness / 255) * (chars.length - 1));
-                const char = chars[charIndex] || ' ';
+                const char = charForBrightness(brightness, chars);
 
                 text += char;
 
@@ -822,16 +795,7 @@ class ImageAsciiConverter {
     }
 
     toAnsiColor(r, g, b, char) {
-        const rIndex = Math.round(r / 255 * 5);
-        const gIndex = Math.round(g / 255 * 5);
-        const bIndex = Math.round(b / 255 * 5);
-        const colorCode = 16 + (rIndex * 36) + (gIndex * 6) + bIndex;
-        
-        // Convert ANSI 256 to approximate RGB for HTML
-        const ansiR = Math.round(rIndex * 51);
-        const ansiG = Math.round(gIndex * 51);
-        const ansiB = Math.round(bIndex * 51);
-        
+        const { r: ansiR, g: ansiG, b: ansiB } = ansiColor(r, g, b);
         return `<span style="color:rgb(${ansiR},${ansiG},${ansiB})">${this.escapeHtml(char)}</span>`;
     }
 

@@ -6,6 +6,10 @@ dist/
 dist-ssr/
 *.local
 
+# macOS metadata (AppleDouble resource forks, Finder state)
+.DS_Store
+._*
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

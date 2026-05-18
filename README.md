@@ -25,7 +25,7 @@ Upload any image and customize the output with adjustable resolution, brightness
 ## Tech Stack
 
 - **Frontend**: Vanilla JavaScript (ES6+), HTML5 Canvas API, CSS3
-- **Build Tool**: Vite 5
+- **Build Tool**: Vite 7
 - **Backend**: Vercel Serverless Functions (Node.js)
 - **Database**: Upstash Redis (share link storage)
 - **Hosting**: Vercel with global CDN
@@ -93,20 +93,25 @@ All image processing happens entirely in the browser. The only server-side compo
 
 ```
 Image-To-Ascii-Vite/
-├── index.html          # Main HTML entry point with critical CSS
-├── package.json        # Dependencies and scripts
-├── vite.config.js      # Vite build configuration
-├── vercel.json         # Vercel deployment, API routing, CORS headers
+├── index.html              # Main HTML entry point with critical CSS
+├── package.json            # Dependencies and scripts
+├── package-lock.json       # Pinned dependency tree (committed for reproducible builds)
+├── vite.config.js          # Vite build configuration
+├── vercel.json             # Vercel deployment, API routing, CSP/security headers
 ├── api/
-│   └── share.js        # Serverless function for share link CRUD (Upstash Redis)
+│   └── share.js            # Serverless function for share link CRUD (Upstash Redis)
 ├── public/
-│   ├── favicon.png     # PNG favicon
-│   ├── favicon.svg     # SVG favicon
-│   ├── logo.png        # Logo / OG image
-│   └── view.html       # Shared ASCII art viewer page
-└── src/
-    ├── script.js       # ImageAsciiConverter class - all conversion logic
-    └── style.css       # Full application styles with responsive breakpoints
+│   ├── favicon*.png/.svg   # Favicons
+│   ├── logo.png            # Logo / OG image
+│   ├── view.html           # Shared ASCII art viewer page (markup only)
+│   └── viewer.js           # Viewer logic (external file so it works under strict CSP)
+├── src/
+│   ├── script.js           # ImageAsciiConverter class - all conversion logic
+│   └── style.css           # Full application styles with responsive breakpoints
+├── tests/
+│   └── ascii-conversion.test.js  # Vitest unit tests for core conversion functions
+└── docs/
+    └── plans/              # Production hardening plan + design notes
 ```
 
 ## License
