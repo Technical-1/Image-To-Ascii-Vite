@@ -59,7 +59,6 @@ flowchart TB
 
     UI --> Vite
     Vite --> Vercel
-    ShareAPI --> Vercel
 ```
 
 ## Data Flow
