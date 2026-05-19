@@ -27,4 +27,21 @@ describe('sanitizeSettings', () => {
     expect(s.fontSize).toBe(4);
     expect(s.lineHeight).toBe(1.5);
   });
+  it('falls back to defaults for null / non-object raw', () => {
+    expect(sanitizeSettings(null, DEFAULT_SETTINGS)).toEqual(DEFAULT_SETTINGS);
+    expect(sanitizeSettings('nope', DEFAULT_SETTINGS)).toEqual(DEFAULT_SETTINGS);
+    expect(sanitizeSettings(undefined, DEFAULT_SETTINGS)).toEqual(DEFAULT_SETTINGS);
+  });
+  it('preserves explicit false booleans (does not collapse to default)', () => {
+    const s = sanitizeSettings({ inverted: false, edgeDetection: false, preserveAspectRatio: false, fitToContainer: false }, DEFAULT_SETTINGS);
+    expect(s.inverted).toBe(false);
+    expect(s.edgeDetection).toBe(false);
+    expect(s.preserveAspectRatio).toBe(false);
+    expect(s.fitToContainer).toBe(false);
+  });
+  it('keeps preserveAspectRatio/fitToContainer defaults when keys are absent', () => {
+    const s = sanitizeSettings({}, DEFAULT_SETTINGS);
+    expect(s.preserveAspectRatio).toBe(true);
+    expect(s.fitToContainer).toBe(true);
+  });
 });

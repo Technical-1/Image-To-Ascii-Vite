@@ -12,11 +12,12 @@ export const DEFAULT_SETTINGS = {
   inverted: false,
   edgeDetection: false,
   fontSize: 8,
-  lineHeight: 0.7,
+  lineHeight: 0.7, // intentionally within the [0.5, 1.5] clamp range
   preserveAspectRatio: true,
   fitToContainer: true,
 };
 
+// `defaults` is an injectable param so the share codec can reuse this exact contract without a circular import.
 export function sanitizeSettings(raw, defaults = DEFAULT_SETTINGS) {
   const r = raw && typeof raw === 'object' ? raw : {};
   const clampInt = (val, min, max, fallback) => {
@@ -39,8 +40,8 @@ export function sanitizeSettings(raw, defaults = DEFAULT_SETTINGS) {
     contrast: clampFloat(r.contrast, 0.5, 2.0, defaults.contrast),
     colorMode: enumVal(r.colorMode, ['grayscale', 'ansi', 'rgb', 'full-rgb'], defaults.colorMode),
     charsetType: enumVal(r.charsetType, ['standard', 'detailed', 'blocks', 'binary', 'dots', 'custom'], defaults.charsetType),
-    inverted: Boolean(r.inverted),
-    edgeDetection: Boolean(r.edgeDetection),
+    inverted: r.inverted !== undefined ? Boolean(r.inverted) : defaults.inverted,
+    edgeDetection: r.edgeDetection !== undefined ? Boolean(r.edgeDetection) : defaults.edgeDetection,
     preserveAspectRatio: r.preserveAspectRatio !== undefined ? Boolean(r.preserveAspectRatio) : defaults.preserveAspectRatio,
     fitToContainer: r.fitToContainer !== undefined ? Boolean(r.fitToContainer) : defaults.fitToContainer,
     customCharset: String(r.customCharset ?? defaults.customCharset).slice(0, 200),
