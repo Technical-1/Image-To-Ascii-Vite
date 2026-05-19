@@ -9,6 +9,7 @@ import {
     ansiColor,
     applyEdgeDetection,
 } from './ascii-core.js';
+import { DEFAULT_SETTINGS, sanitizeSettings } from './settings-schema.js';
 
 /**
  * Image to ASCII Converter
@@ -93,61 +94,15 @@ class ImageAsciiConverter {
     }
 
     loadSettings() {
-        const defaults = {
-            width: 100,
-            height: 75,
-            charsetType: 'standard',
-            customCharset: '',
-            colorMode: 'grayscale',
-            brightness: 1.0,
-            contrast: 1.0,
-            inverted: false,
-            edgeDetection: false,
-            fontSize: 8,
-            lineHeight: 0.7,
-            preserveAspectRatio: true,
-            fitToContainer: true
-        };
-
         try {
             const saved = localStorage.getItem('imageAsciiSettings');
             if (saved) {
-                const parsed = JSON.parse(saved);
-                return this.sanitizeSettings(parsed, defaults);
+                return sanitizeSettings(JSON.parse(saved), DEFAULT_SETTINGS);
             }
-            return defaults;
+            return { ...DEFAULT_SETTINGS };
         } catch (e) {
-            return defaults;
+            return { ...DEFAULT_SETTINGS };
         }
-    }
-
-    sanitizeSettings(raw, defaults) {
-        const clampInt = (val, min, max, fallback) => {
-            const n = parseInt(val, 10);
-            return Number.isNaN(n) ? fallback : Math.max(min, Math.min(max, n));
-        };
-        const clampFloat = (val, min, max, fallback) => {
-            const n = parseFloat(val);
-            return Number.isNaN(n) ? fallback : Math.max(min, Math.min(max, n));
-        };
-        const enumVal = (val, allowed, fallback) =>
-            allowed.includes(val) ? val : fallback;
-
-        return {
-            width: clampInt(raw.width, 10, 2000, defaults.width),
-            height: clampInt(raw.height, 10, 2000, defaults.height),
-            fontSize: clampInt(raw.fontSize, 4, 20, defaults.fontSize),
-            lineHeight: clampFloat(raw.lineHeight, 0.5, 1.5, defaults.lineHeight),
-            brightness: clampFloat(raw.brightness, 0.5, 2.0, defaults.brightness),
-            contrast: clampFloat(raw.contrast, 0.5, 2.0, defaults.contrast),
-            colorMode: enumVal(raw.colorMode, ['grayscale', 'ansi', 'rgb', 'full-rgb'], defaults.colorMode),
-            charsetType: enumVal(raw.charsetType, ['standard', 'detailed', 'blocks', 'binary', 'dots', 'custom'], defaults.charsetType),
-            inverted: Boolean(raw.inverted),
-            edgeDetection: Boolean(raw.edgeDetection),
-            preserveAspectRatio: raw.preserveAspectRatio !== undefined ? Boolean(raw.preserveAspectRatio) : defaults.preserveAspectRatio,
-            fitToContainer: raw.fitToContainer !== undefined ? Boolean(raw.fitToContainer) : defaults.fitToContainer,
-            customCharset: String(raw.customCharset ?? defaults.customCharset).slice(0, 200)
-        };
     }
 
     saveSettings() {
