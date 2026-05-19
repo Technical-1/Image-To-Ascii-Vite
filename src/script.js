@@ -17,6 +17,9 @@ import { encodeShare, decodeShare, validateShare } from './share-codec.js';
  * Matching features with Video ASCII Converter
  */
 
+// Export buttons present in read-only view mode (no share-btn there).
+const VIEW_EXPORT_BUTTON_IDS = ['copy-btn', 'export-txt-btn', 'export-png-btn', 'export-html-btn'];
+
 // Character set presets (matching video project)
 const charsets = {
     standard: ' .:-=+*#%@',
@@ -355,10 +358,16 @@ class ImageAsciiConverter {
     }
 
     attachViewListeners() {
-        document.getElementById('copy-btn').addEventListener('click', () => this.copyAscii());
-        document.getElementById('export-txt-btn').addEventListener('click', () => this.exportAsTxt());
-        document.getElementById('export-png-btn').addEventListener('click', () => this.exportAsPng());
-        document.getElementById('export-html-btn').addEventListener('click', () => this.exportAsHtml());
+        const handlers = {
+            'copy-btn': () => this.copyAscii(),
+            'export-txt-btn': () => this.exportAsTxt(),
+            'export-png-btn': () => this.exportAsPng(),
+            'export-html-btn': () => this.exportAsHtml(),
+        };
+        VIEW_EXPORT_BUTTON_IDS.forEach((id) => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('click', handlers[id]);
+        });
     }
 
     showShareError(message) {
@@ -370,14 +379,13 @@ class ImageAsciiConverter {
         h.textContent = 'This share link is invalid or corrupted.';
         const detail = document.createElement('p');
         detail.className = 'placeholder';
-        detail.textContent = message;
+        detail.textContent = String(message);
         const a = document.createElement('a');
         a.href = location.pathname;
         a.className = 'tool-btn';
         a.textContent = '✨ Create Your Own';
         output.append(h, detail, a);
-        ['copy-btn', 'export-txt-btn', 'export-png-btn', 'export-html-btn']
-            .forEach((id) => { const el = document.getElementById(id); if (el) el.disabled = true; });
+        VIEW_EXPORT_BUTTON_IDS.forEach((id) => { const el = document.getElementById(id); if (el) el.disabled = true; });
     }
 
     attachEventListeners() {
