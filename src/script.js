@@ -119,11 +119,46 @@ class ImageAsciiConverter {
     }
 
     init() {
+        const shareValue = new URLSearchParams(location.hash.slice(1)).get('s');
+        if (shareValue) {
+            this.enterViewMode(shareValue);
+            return;
+        }
+
         this.setupUI();
         this.attachEventListeners();
         this.applySettings();
-        
-        // Re-fit on window resize
+
+        window.addEventListener('resize', () => {
+            if (this.settings.fitToContainer && this.currentAscii) {
+                this.fitOutputToContainer();
+            }
+        });
+    }
+
+    enterViewMode(shareValue) {
+        this.setupViewUI();
+
+        let validated;
+        try {
+            const decoded = decodeShare(shareValue);
+            validated = validateShare(decoded, (raw) => sanitizeSettings(raw, DEFAULT_SETTINGS));
+        } catch (error) {
+            console.error('Share decode error:', error);
+            this.showShareError(error.message);
+            return;
+        }
+
+        this.settings = validated.settings;
+        if (this.settings.charsetType === 'custom') {
+            charsets.custom = this.settings.customCharset || ' .:-=+*#%@';
+        }
+        this.currentImageDataUrl = validated.img;
+
+        this.attachViewListeners();
+        this.updateOutputStyle();
+        this.convertToAscii();
+
         window.addEventListener('resize', () => {
             if (this.settings.fitToContainer && this.currentAscii) {
                 this.fitOutputToContainer();
