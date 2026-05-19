@@ -29,8 +29,8 @@ export function encodeShare({ settings, img } = {}) {
   if (!settings || typeof settings !== 'object' || Array.isArray(settings)) {
     throw new Error('encodeShare: settings object required');
   }
-  if (typeof img !== 'string' || !img.startsWith('data:image/')) {
-    throw new Error('encodeShare: img must be a data:image/ URI');
+  if (typeof img !== 'string' || !RASTER_DATA_URI.test(img)) {
+    throw new Error('encodeShare: img must be a base64 raster (png/jpeg/gif/webp) data URI');
   }
   const json = JSON.stringify({ v: SHARE_VERSION, settings, img });
   return _bytesToBase64Url(new TextEncoder().encode(json));
@@ -58,7 +58,7 @@ export function decodeShare(value) {
   } catch (e) {
     throw new Error('decodeShare: invalid JSON');
   }
-  if (!obj || typeof obj !== 'object') {
+  if (!obj || typeof obj !== 'object' || Array.isArray(obj)) {
     throw new Error('decodeShare: payload is not an object');
   }
   return obj;

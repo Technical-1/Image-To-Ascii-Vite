@@ -59,6 +59,12 @@ describe('encodeShare guards', () => {
   it('rejects a non-image img', () => {
     expect(() => encodeShare({ settings: {}, img: 'http://evil/x' })).toThrow();
   });
+  it('rejects an array as settings', () => {
+    expect(() => encodeShare({ settings: [], img: IMG })).toThrow();
+  });
+  it('rejects a non-raster (svg) img', () => {
+    expect(() => encodeShare({ settings: {}, img: 'data:image/svg+xml;base64,PHN2Zy8+' })).toThrow();
+  });
 });
 
 describe('decodeShare guards', () => {
@@ -70,6 +76,9 @@ describe('decodeShare guards', () => {
   });
   it('throws on valid base64url that is not JSON', () => {
     expect(() => decodeShare(_bytesToBase64Url(new TextEncoder().encode('not json')))).toThrow();
+  });
+  it('throws on a top-level JSON array payload', () => {
+    expect(() => decodeShare(_bytesToBase64Url(new TextEncoder().encode('[1,2,3]')))).toThrow(/not an object/i);
   });
 });
 
