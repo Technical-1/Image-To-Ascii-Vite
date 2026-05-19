@@ -3,6 +3,7 @@
 **Created:** 2026-05-18
 **Branch:** `fix/production-hardening` (⚠️ local only — never pushed to GitHub)
 **Last verified commit:** `86458ba` — "fix: make CSP-safe share viewer, dedupe core algorithms, clean repo"
+**URL-share update (2026-05-19):** Branch `feat/url-share` resolved the share-backend cluster (A2, B1, B2, C1, C4, U1-U3): Redis backend deleted; sharing is now client-side via URL fragment (`#s=`). See `docs/superpowers/specs/2026-05-18-url-share-design.md`. **C2 is NOT in this cluster** — it is a client-side create-mode bug (unbounded canvas), still open.
 
 > **Purpose.** This is the authoritative tracking document for the Image-to-ASCII
 > project. It supersedes the status claims in `PRODUCTION-AUDIT.md`,
@@ -24,7 +25,7 @@
 
 These require the human owner; the agent has no access to the dashboards.
 
-- [ ] **U1 — Re-provision Upstash Redis and wire env vars.** The previous Upstash
+- [x] **U1 — Re-provision Upstash Redis and wire env vars.** The previous Upstash
       instance has been **deleted** (confirmed by owner). The Share feature is
       therefore non-functional in production until this is done.
   - Create a new Redis database (Upstash console, or Vercel → Storage →
@@ -36,13 +37,16 @@ These require the human owner; the agent has no access to the dashboards.
   - Redeploy. Verify a share round-trips (create link → open `/view.html?id=…`).
   - **Blocks/relates to:** A2, B1, B2, C1, C4, D1. Decide A2 (revive vs. remove
     Share) before or alongside this — if Share is being removed, U1 is moot.
-- [ ] **U2 — Confirm what is actually deployed on Vercel.** Determine which
+  - N/A — Redis backend removed; sharing is now client-side.
+- [x] **U2 — Confirm what is actually deployed on Vercel.** Determine which
       branch/commit Vercel builds (Project → Settings → Git). If it tracks
       `main`, production is the **old Feb pre-hardening code** and none of the
       hardening (or these fixes) is live. (Finding A3.)
-- [ ] **U3 — Confirm the real production domain.** The code hardcodes
+  - N/A — Redis backend removed; sharing is now client-side.
+- [x] **U3 — Confirm the real production domain.** The code hardcodes
       `image-to-ascii-nine.vercel.app` (CORS allowlist). Confirm this is correct
       or supply the real domain. (Feeds B2 / C1.)
+  - N/A — Redis backend removed; sharing is now client-side.
 
 ---
 
@@ -60,7 +64,7 @@ These require the human owner; the agent has no access to the dashboards.
 | ID | Sev | Status | Origin | Finding | Evidence | Notes |
 |----|-----|--------|--------|---------|----------|-------|
 | A1 | CRITICAL | [x] | new | RESOLVED 2026-05-18: `fix/production-hardening` pushed to `origin` (this commit + push). Previously the 25 commits existed only on this machine with no backup. | `git ls-remote --heads origin`; `git branch -vv` | Branch now backed up on GitHub. `main` had 0 commits the branch lacked (no merge-conflict risk). Merge-to-`main` decision still open (separate from backup). |
-| A2 | HIGH | [B] | new | Share feature non-functional in production: Upstash deleted (U1). `redis.set/get` throws → caught → HTTP 500. Degrades gracefully (toast "Failed to create share link"), but the Share button stays enabled and always fails. Core converter is unaffected (100% client-side). | `api/share.js:6-9,110-113`; `script.js` `shareAscii` | **Decision needed:** (a) revive via U1, or (b) remove Share button + `api/share.js` + `public/view.html` + `public/viewer.js` + share-only deps (`@upstash/*`, `nanoid`, `dompurify`) entirely. Blocks B1/B2/C1/C4/D1. |
+| A2 | HIGH | [x] | new | Share feature non-functional in production: Upstash deleted (U1). `redis.set/get` throws → caught → HTTP 500. Degrades gracefully (toast "Failed to create share link"), but the Share button stays enabled and always fails. Core converter is unaffected (100% client-side). | `api/share.js:6-9,110-113`; `script.js` `shareAscii` | **Decision needed:** (a) revive via U1, or (b) remove Share button + `api/share.js` + `public/view.html` + `public/viewer.js` + share-only deps (`@upstash/*`, `nanoid`, `dompurify`) entirely. Blocks B1/B2/C1/C4/D1. RESOLVED 2026-05-19 by URL-share (feat/url-share): backend deleted; see docs/superpowers/specs/2026-05-18-url-share-design.md. |
 | A3 | HIGH | [B] | new | Unknown which commit Vercel deploys. If it tracks `main`, prod = old vulnerable Feb build. | branch topology | Resolved by U2. |
 
 ---
@@ -69,8 +73,8 @@ These require the human owner; the agent has no access to the dashboards.
 
 | ID | Sev | Status | Origin | Finding | Evidence | Notes |
 |----|-----|--------|--------|---------|----------|-------|
-| B1 | HIGH | [ ] | new | DOMPurify is loaded from cdnjs with **no Subresource Integrity** (`integrity`/`crossorigin`). If cdnjs is compromised, arbitrary script runs with full page access — and DOMPurify *is* the stored-XSS defense, so this defeats the headline audit fix. `dompurify` is already an npm dependency but the viewer uses the CDN copy. | `public/view.html:348` | Best fix: bundle DOMPurify via the existing npm dep (requires making `viewer.js` a Vite-built entry, or an import map). Interim: add SRI hash + `crossorigin="anonymous"`. Couples with the "viewer as bundled module" future item. |
-| B2 | MEDIUM | [ ] | new | CORS allowlist hardcodes `image-to-ascii-nine.vercel.app`. If the real prod domain differs, the share API blocks the legitimate site. The audit "fixed wildcard CORS" by substituting a hardcoded guess. | `api/share.js:18-24` | Needs U3. Consider an env-var-driven allowlist. |
+| B1 | HIGH | [x] | new | DOMPurify is loaded from cdnjs with **no Subresource Integrity** (`integrity`/`crossorigin`). If cdnjs is compromised, arbitrary script runs with full page access — and DOMPurify *is* the stored-XSS defense, so this defeats the headline audit fix. `dompurify` is already an npm dependency but the viewer uses the CDN copy. | `public/view.html:348` | Best fix: bundle DOMPurify via the existing npm dep (requires making `viewer.js` a Vite-built entry, or an import map). Interim: add SRI hash + `crossorigin="anonymous"`. Couples with the "viewer as bundled module" future item. RESOLVED 2026-05-19 by URL-share (feat/url-share): backend deleted; see docs/superpowers/specs/2026-05-18-url-share-design.md. |
+| B2 | MEDIUM | [x] | new | CORS allowlist hardcodes `image-to-ascii-nine.vercel.app`. If the real prod domain differs, the share API blocks the legitimate site. The audit "fixed wildcard CORS" by substituting a hardcoded guess. | `api/share.js:18-24` | Needs U3. Consider an env-var-driven allowlist. RESOLVED 2026-05-19 by URL-share (feat/url-share): backend deleted; see docs/superpowers/specs/2026-05-18-url-share-design.md. |
 
 ---
 
@@ -78,10 +82,10 @@ These require the human owner; the agent has no access to the dashboards.
 
 | ID | Sev | Status | Origin | Finding | Evidence | Notes |
 |----|-----|--------|--------|---------|----------|-------|
-| C1 | MEDIUM | [ ] | new | Share URLs are built from `process.env.VERCEL_URL` — the **ephemeral per-deployment** hostname, not the stable production domain. Even with Redis working, generated links rot as deployments rotate. | `api/share.js:71-72` | Use `VERCEL_PROJECT_PRODUCTION_URL` (Vercel's stable domain var) or a configured base URL. Bundle with B2/U3. |
-| C2 | MEDIUM | [ ] | new | Canvas dimensions unbounded at conversion time. `sanitizeSettings` clamps width/height ≤2000 only when loading from localStorage; the width/height slider `max` is set to the full image dimension (`updateSliderMax`). Maxing the slider on a large image → `getImageData(0,0,N,…)` with N in the thousands → tab freeze. The 50MB *file*-size limit does not bound *output* dimensions. | `src/script.js` `updateSliderMax` vs `sanitizeSettings`; `processImage` | Redis-independent. Clamp at convert time and/or cap slider max. Add a regression test (logic is testable via `ascii-core.js`-style extraction). |
+| C1 | MEDIUM | [x] | new | Share URLs are built from `process.env.VERCEL_URL` — the **ephemeral per-deployment** hostname, not the stable production domain. Even with Redis working, generated links rot as deployments rotate. | `api/share.js:71-72` | Use `VERCEL_PROJECT_PRODUCTION_URL` (Vercel's stable domain var) or a configured base URL. Bundle with B2/U3. RESOLVED 2026-05-19 by URL-share (feat/url-share): backend deleted; see docs/superpowers/specs/2026-05-18-url-share-design.md. |
+| C2 | MEDIUM | [ ] | new | Canvas dimensions unbounded at conversion time. `sanitizeSettings` clamps width/height ≤2000 only when loading from localStorage; the width/height slider `max` is set to the full image dimension (`updateSliderMax`). Maxing the slider on a large image → `getImageData(0,0,N,…)` with N in the thousands → tab freeze. The 50MB *file*-size limit does not bound *output* dimensions. | `src/script.js` `updateSliderMax` vs `sanitizeSettings`; `processImage` | Redis-independent. Clamp at convert time and/or cap slider max. Add a regression test (logic is testable via `ascii-core.js`-style extraction). NOT resolved by URL-share — this is a client-side create-mode bug (slider max = full image dimension; convert-time clamp still missing), independent of the removed backend. Still OPEN. |
 | C3 | LOW | [ ] | new | "💚 Matrix" preset is byte-identical to "🟢 Classic" (`standard` / `grayscale` / not inverted). The button visibly does nothing distinct. | `src/script.js` `presets.matrix` vs `presets.classic` | Redis-independent. Either give Matrix a distinct config (e.g. green-tinted, custom charset) or remove it. Product decision. |
-| C4 | LOW | [ ] | new | View-count increment is a read-modify-write (`get` → `+1` → `set`); concurrent GETs lose updates. | `api/share.js:99-101` | Cosmetic (view counter only). Moot while Redis down. Use Redis atomic `INCR` on a separate key if revived. |
+| C4 | LOW | [x] | new | View-count increment is a read-modify-write (`get` → `+1` → `set`); concurrent GETs lose updates. | `api/share.js:99-101` | Cosmetic (view counter only). Moot while Redis down. Use Redis atomic `INCR` on a separate key if revived. RESOLVED 2026-05-19 by URL-share (feat/url-share): backend deleted; see docs/superpowers/specs/2026-05-18-url-share-design.md. |
 
 ---
 

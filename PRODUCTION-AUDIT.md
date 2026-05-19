@@ -27,6 +27,8 @@
 
 **Fix:** Install DOMPurify. Sanitize HTML allowing only `<span>` with `style` attribute before rendering. Fallback to `textContent` if sanitization strips everything.
 
+Superseded 2026-05-19: share backend removed (URL-share, feat/url-share).
+
 ---
 
 ### 2. [x] Stored XSS via stats overlay in view.html
@@ -39,6 +41,8 @@
 
 **Fix:** Coerce `width`, `height`, and `views` to integers with `parseInt(..., 10) || 0` before rendering. Build DOM nodes manually.
 
+Superseded 2026-05-19: share backend removed (URL-share, feat/url-share).
+
 ---
 
 ### 3. [x] Reflected XSS in view.html showError function
@@ -50,6 +54,8 @@
 **The problem:** If the API returns a crafted error message, it gets rendered as HTML. The `message` parameter flows from `data.error` (line 364) which comes from the API response.
 
 **Fix:** Use `textContent` or `createElement` instead of unsafe DOM insertion for the error display.
+
+Superseded 2026-05-19: share backend removed (URL-share, feat/url-share).
 
 ---
 
@@ -89,6 +95,8 @@ if (bodySize > 2_000_000) { // 2MB limit
 }
 ```
 
+Superseded 2026-05-19: share backend removed (URL-share, feat/url-share).
+
 ---
 
 ### 6. [x] No rate limiting on share API
@@ -108,6 +116,8 @@ const ratelimit = new Ratelimit({
 });
 ```
 
+Superseded 2026-05-19: share backend removed (URL-share, feat/url-share).
+
 ---
 
 ### 7. [x] API error details leaked to client
@@ -119,6 +129,8 @@ const ratelimit = new Ratelimit({
 **The problem:** Redis connection errors, TLS failures, and parse errors can leak internal infrastructure details (hostnames, token format) to any caller.
 
 **Fix:** Remove `details` field from the response. Keep `console.error` for server-side logging.
+
+Superseded 2026-05-19: share backend removed (URL-share, feat/url-share).
 
 ---
 
@@ -132,6 +144,8 @@ const ratelimit = new Ratelimit({
 
 **Fix:** Validate nanoid format: `if (!/^[A-Za-z0-9_-]{10}$/.test(id)) return res.status(400).json({ error: 'Invalid share ID' });`
 
+Superseded 2026-05-19: share backend removed (URL-share, feat/url-share).
+
 ---
 
 ### 9. [x] Wildcard CORS allows any origin to use share API
@@ -143,6 +157,8 @@ const ratelimit = new Ratelimit({
 **The problem:** Any website can call `/api/share` from a user's browser, creating share records and burning Redis quota without the user visiting your app.
 
 **Fix:** Restrict to production domain + localhost for dev. Remove static CORS headers from `vercel.json` (let the function code control them to avoid duplication).
+
+Superseded 2026-05-19: share backend removed (URL-share, feat/url-share).
 
 ---
 
@@ -253,6 +269,8 @@ if (file.size > 50 * 1024 * 1024) {
 **The problem:** Maintaining CORS config in two places creates confusion and potential conflicts.
 
 **Fix:** Remove CORS headers from `vercel.json` and keep them only in the function code (where you need dynamic origin checking anyway after fixing the wildcard issue).
+
+Superseded 2026-05-19: share backend removed (URL-share, feat/url-share).
 
 ---
 

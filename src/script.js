@@ -9,11 +9,20 @@ import {
     ansiColor,
     applyEdgeDetection,
 } from './ascii-core.js';
+import { DEFAULT_SETTINGS, sanitizeSettings } from './settings-schema.js';
+import { encodeShare, decodeShare, validateShare } from './share-codec.js';
 
 /**
  * Image to ASCII Converter
  * Matching features with Video ASCII Converter
  */
+
+// Export buttons present in read-only view mode (no share-btn there).
+const VIEW_EXPORT_BUTTON_IDS = ['copy-btn', 'export-txt-btn', 'export-png-btn', 'export-html-btn'];
+
+// Fallback charset when a "custom" charset is empty — MUST be identical in
+// create mode and view mode so a shared link reproduces byte-identically.
+const EMPTY_CUSTOM_CHARSET_FALLBACK = ' .:-=+*#%@';
 
 // Character set presets (matching video project)
 const charsets = {
@@ -77,6 +86,7 @@ class ImageAsciiConverter {
         this.currentImage = null;
         this.currentImageDataUrl = null;
         this.currentAscii = null;
+        this.currentShareImage = null;
         this.debounceTimer = null;
         
         // Settings (with localStorage persistence)
@@ -93,61 +103,15 @@ class ImageAsciiConverter {
     }
 
     loadSettings() {
-        const defaults = {
-            width: 100,
-            height: 75,
-            charsetType: 'standard',
-            customCharset: '',
-            colorMode: 'grayscale',
-            brightness: 1.0,
-            contrast: 1.0,
-            inverted: false,
-            edgeDetection: false,
-            fontSize: 8,
-            lineHeight: 0.7,
-            preserveAspectRatio: true,
-            fitToContainer: true
-        };
-
         try {
             const saved = localStorage.getItem('imageAsciiSettings');
             if (saved) {
-                const parsed = JSON.parse(saved);
-                return this.sanitizeSettings(parsed, defaults);
+                return sanitizeSettings(JSON.parse(saved), DEFAULT_SETTINGS);
             }
-            return defaults;
+            return { ...DEFAULT_SETTINGS };
         } catch (e) {
-            return defaults;
+            return { ...DEFAULT_SETTINGS };
         }
-    }
-
-    sanitizeSettings(raw, defaults) {
-        const clampInt = (val, min, max, fallback) => {
-            const n = parseInt(val, 10);
-            return Number.isNaN(n) ? fallback : Math.max(min, Math.min(max, n));
-        };
-        const clampFloat = (val, min, max, fallback) => {
-            const n = parseFloat(val);
-            return Number.isNaN(n) ? fallback : Math.max(min, Math.min(max, n));
-        };
-        const enumVal = (val, allowed, fallback) =>
-            allowed.includes(val) ? val : fallback;
-
-        return {
-            width: clampInt(raw.width, 10, 2000, defaults.width),
-            height: clampInt(raw.height, 10, 2000, defaults.height),
-            fontSize: clampInt(raw.fontSize, 4, 20, defaults.fontSize),
-            lineHeight: clampFloat(raw.lineHeight, 0.5, 1.5, defaults.lineHeight),
-            brightness: clampFloat(raw.brightness, 0.5, 2.0, defaults.brightness),
-            contrast: clampFloat(raw.contrast, 0.5, 2.0, defaults.contrast),
-            colorMode: enumVal(raw.colorMode, ['grayscale', 'ansi', 'rgb', 'full-rgb'], defaults.colorMode),
-            charsetType: enumVal(raw.charsetType, ['standard', 'detailed', 'blocks', 'binary', 'dots', 'custom'], defaults.charsetType),
-            inverted: Boolean(raw.inverted),
-            edgeDetection: Boolean(raw.edgeDetection),
-            preserveAspectRatio: raw.preserveAspectRatio !== undefined ? Boolean(raw.preserveAspectRatio) : defaults.preserveAspectRatio,
-            fitToContainer: raw.fitToContainer !== undefined ? Boolean(raw.fitToContainer) : defaults.fitToContainer,
-            customCharset: String(raw.customCharset ?? defaults.customCharset).slice(0, 200)
-        };
     }
 
     saveSettings() {
@@ -159,11 +123,49 @@ class ImageAsciiConverter {
     }
 
     init() {
+        const shareValue = new URLSearchParams(location.hash.slice(1)).get('s');
+        if (shareValue) {
+            this.enterViewMode(shareValue);
+            return;
+        }
+
         this.setupUI();
         this.attachEventListeners();
         this.applySettings();
-        
-        // Re-fit on window resize
+
+        window.addEventListener('resize', () => {
+            if (this.settings.fitToContainer && this.currentAscii) {
+                this.fitOutputToContainer();
+            }
+        });
+    }
+
+    enterViewMode(shareValue) {
+        this.setupViewUI();
+
+        let validated;
+        try {
+            const decoded = decodeShare(shareValue);
+            validated = validateShare(decoded, (raw) => sanitizeSettings(raw, DEFAULT_SETTINGS));
+        } catch (error) {
+            console.error('Share decode error:', error);
+            this.showShareError(error.message);
+            return;
+        }
+
+        // View mode intentionally never calls saveSettings() — a shared link must
+        // not clobber the visitor's own create-mode localStorage preferences.
+        this.settings = validated.settings;
+        if (this.settings.charsetType === 'custom') {
+            charsets.custom = this.settings.customCharset || EMPTY_CUSTOM_CHARSET_FALLBACK;
+        }
+        this.currentImageDataUrl = validated.img;
+
+        this.attachViewListeners();
+        this.updateOutputStyle();
+        // fire-and-forget: image-load / conversion errors are handled inside convertToAscii
+        this.convertToAscii();
+
         window.addEventListener('resize', () => {
             if (this.settings.fitToContainer && this.currentAscii) {
                 this.fitOutputToContainer();
@@ -330,6 +332,104 @@ class ImageAsciiConverter {
         `;
     }
 
+    setupViewUI() {
+        const app = document.querySelector('#app') || document.body;
+        app.replaceChildren();
+
+        const mkBtn = (id, label, aria) => {
+            const b = document.createElement('button');
+            b.className = 'tool-btn';
+            b.id = id;
+            b.textContent = label;
+            b.setAttribute('aria-label', aria);
+            return b;
+        };
+
+        const layout = document.createElement('div');
+        layout.className = 'app-layout';
+
+        const main = document.createElement('main');
+        main.className = 'main-content';
+
+        const toolbar = document.createElement('div');
+        toolbar.className = 'output-toolbar';
+
+        const left = document.createElement('div');
+        left.className = 'toolbar-left';
+        const title = document.createElement('span');
+        title.className = 'output-title';
+        title.textContent = '🖼️ Shared ASCII Art';
+        left.appendChild(title);
+
+        const right = document.createElement('div');
+        right.className = 'toolbar-right';
+        right.appendChild(mkBtn('copy-btn', '📋 Copy', 'Copy to clipboard'));
+        right.appendChild(mkBtn('export-txt-btn', '📄 TXT', 'Export as text file'));
+        right.appendChild(mkBtn('export-png-btn', '🖼️ PNG', 'Export as PNG image'));
+        right.appendChild(mkBtn('export-html-btn', '🌐 HTML', 'Export as HTML file'));
+        const create = document.createElement('a');
+        create.className = 'tool-btn';
+        create.id = 'create-link';
+        create.href = location.pathname;
+        create.textContent = '✨ Create Your Own';
+        right.appendChild(create);
+
+        toolbar.appendChild(left);
+        toolbar.appendChild(right);
+
+        const output = document.createElement('div');
+        output.className = 'ascii-container';
+        output.id = 'ascii-output';
+        output.setAttribute('role', 'img');
+        output.setAttribute('aria-label', 'Shared ASCII art');
+        const ph = document.createElement('p');
+        ph.className = 'placeholder';
+        ph.textContent = 'Loading shared art…';
+        output.appendChild(ph);
+
+        main.appendChild(toolbar);
+        main.appendChild(output);
+
+        const toast = document.createElement('div');
+        toast.className = 'toast hidden';
+        toast.id = 'toast';
+
+        layout.appendChild(main);
+        layout.appendChild(toast);
+        app.appendChild(layout);
+    }
+
+    attachViewListeners() {
+        const handlers = {
+            'copy-btn': () => this.copyAscii(),
+            'export-txt-btn': () => this.exportAsTxt(),
+            'export-png-btn': () => this.exportAsPng(),
+            'export-html-btn': () => this.exportAsHtml(),
+        };
+        VIEW_EXPORT_BUTTON_IDS.forEach((id) => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('click', handlers[id]);
+        });
+    }
+
+    showShareError(message) {
+        const output = document.getElementById('ascii-output');
+        if (!output) return;
+        output.replaceChildren();
+        const h = document.createElement('p');
+        h.className = 'placeholder error';
+        h.textContent = 'This share link is invalid or corrupted.';
+        const detail = document.createElement('p');
+        detail.className = 'placeholder';
+        detail.textContent = String(message);
+        const a = document.createElement('a');
+        a.href = location.pathname;
+        a.className = 'tool-btn';
+        a.textContent = '✨ Create Your Own';
+        output.append(h, detail, a);
+        VIEW_EXPORT_BUTTON_IDS.forEach((id) => { const el = document.getElementById(id); if (el) el.disabled = true; });
+    }
+
     attachEventListeners() {
         // File upload
         const uploadArea = document.getElementById('upload-area');
@@ -440,8 +540,11 @@ class ImageAsciiConverter {
 
         // Custom charset
         document.getElementById('custom-charset').addEventListener('input', (e) => {
-            this.settings.customCharset = e.target.value;
-            charsets.custom = e.target.value || ' .:-=+*#%@';
+            // Cap to 200 to match sanitizeSettings, so a shared link reproduces
+            // bit-identically (the viewer always sees the sanitized <=200 value).
+            const value = e.target.value.slice(0, 200);
+            this.settings.customCharset = value;
+            charsets.custom = value || EMPTY_CUSTOM_CHARSET_FALLBACK;
             this.saveSettings();
             this.debounceConvert();
         });
@@ -663,25 +766,27 @@ class ImageAsciiConverter {
 
         try {
             const imageData = await this.processImage();
+            // Snapshot the downscaled canvas (raw resized pixels, pre-effects)
+            // for backend-free URL sharing.
+            this.currentShareImage = this.canvas.toDataURL('image/png');
+
             const asciiContent = this.pixelsToAscii(imageData);
-            
+
             this.currentAscii = asciiContent;
             this.renderAscii(asciiContent);
-            
-            // Enable export buttons
-            document.getElementById('share-btn').disabled = false;
-            document.getElementById('copy-btn').disabled = false;
-            document.getElementById('export-txt-btn').disabled = false;
-            document.getElementById('export-png-btn').disabled = false;
-            document.getElementById('export-html-btn').disabled = false;
-            
+
+            ['share-btn', 'copy-btn', 'export-txt-btn', 'export-png-btn', 'export-html-btn']
+                .forEach((id) => {
+                    const el = document.getElementById(id);
+                    if (el) el.disabled = false;
+                });
         } catch (error) {
             console.error('Conversion error:', error);
             const output = document.getElementById('ascii-output');
             const p = document.createElement('p');
             p.className = 'placeholder error';
             p.textContent = `Error: ${error.message}`;
-            output.replaceChildren(p);
+            if (output) output.replaceChildren(p);
         }
     }
 
@@ -811,6 +916,8 @@ class ImageAsciiConverter {
         const output = document.getElementById('ascii-output');
         
         if (this.settings.colorMode !== 'grayscale') {
+            // Safe: asciiContent.html is built in pixelsToAscii from numeric
+            // pixel values + escapeHtml(char) only — never from link/network strings.
             output.innerHTML = asciiContent.html;
         } else {
             output.textContent = asciiContent.text;
@@ -836,7 +943,18 @@ class ImageAsciiConverter {
         const availableWidth = container.clientWidth - 40;
         const availableHeight = container.clientHeight - toolbarHeight - 60;
         
-        if (availableWidth <= 0 || availableHeight <= 0) return;
+        if (availableWidth <= 0 || availableHeight <= 0) {
+            // Layout not measured yet (e.g. first view-mode paint): retry once
+            // on the next frame rather than silently leaving text unsized.
+            if (!this._fitRetryScheduled) {
+                this._fitRetryScheduled = true;
+                requestAnimationFrame(() => {
+                    this._fitRetryScheduled = false;
+                    this.fitOutputToContainer();
+                });
+            }
+            return;
+        }
         
         // Calculate font size to fit width
         // Each character is roughly 0.6 times the font size in width (monospace)
@@ -874,47 +992,40 @@ class ImageAsciiConverter {
         this.showToast(`Applied "${presetName}" preset`, 'success');
     }
 
-    // Share function
-    async shareAscii() {
-        if (!this.currentAscii) return;
+    // Share function — fully client-side: encodes image + settings into the URL.
+    shareAscii() {
+        if (!this.currentAscii || !this.currentShareImage) return;
 
         const shareBtn = document.getElementById('share-btn');
-        const originalText = shareBtn.textContent;
-        shareBtn.textContent = '⏳ Sharing...';
-        shareBtn.disabled = true;
-
-        try {
-            const response = await fetch('/api/share', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    ascii: this.currentAscii,
-                    settings: this.settings
-                })
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || 'Failed to create share');
+        const originalText = shareBtn ? shareBtn.textContent : '';
+        const restoreButtonSoon = () => {
+            if (shareBtn) {
+                setTimeout(() => { shareBtn.textContent = originalText; }, 2000);
             }
+        };
 
-            // Copy share URL to clipboard
-            await navigator.clipboard.writeText(data.shareUrl);
-            
-            shareBtn.textContent = '✅ Link Copied!';
-            this.showToast(`Share link copied! ${data.shareUrl}`, 'success');
-
+        let encoded;
+        try {
+            encoded = encodeShare({
+                settings: this.settings,
+                img: this.currentShareImage,
+            });
         } catch (error) {
-            console.error('Share error:', error);
+            console.error('Share encode error:', error);
             this.showToast('Failed to create share link', 'error');
-            shareBtn.textContent = originalText;
-        } finally {
-            setTimeout(() => {
-                shareBtn.textContent = originalText;
-                shareBtn.disabled = false;
-            }, 2000);
+            return;
         }
+
+        const url = `${location.origin}${location.pathname}#s=${encoded}`;
+
+        navigator.clipboard.writeText(url).then(() => {
+            if (shareBtn) shareBtn.textContent = '✅ Link Copied!';
+            this.showToast('Share link copied to clipboard!', 'success');
+            restoreButtonSoon();
+        }).catch(() => {
+            this.showToast('Could not copy link to clipboard', 'error');
+            restoreButtonSoon();
+        });
     }
 
     // Export functions
@@ -1092,6 +1203,7 @@ class ImageAsciiConverter {
 
     showToast(message, type = 'info') {
         const toast = document.getElementById('toast');
+        if (!toast) return;
         toast.textContent = message;
         toast.className = `toast ${type}`;
         toast.classList.remove('hidden');
