@@ -18,4 +18,15 @@ describe('base64url helpers', () => {
     const decoded = new TextDecoder().decode(_base64UrlToBytes(_bytesToBase64Url(bytes)));
     expect(decoded).toBe(text);
   });
+  it('throws on structurally invalid base64url length (len % 4 === 1)', () => {
+    expect(() => _base64UrlToBytes('A')).toThrow();
+  });
+  it('round-trips empty input both directions', () => {
+    expect(_bytesToBase64Url(new Uint8Array([]))).toBe('');
+    expect(Array.from(_base64UrlToBytes(''))).toEqual([]);
+  });
+  it('round-trips every byte value 0-255 (encode then decode)', () => {
+    const all = new Uint8Array(Array.from({ length: 256 }, (_, i) => i));
+    expect(Array.from(_base64UrlToBytes(_bytesToBase64Url(all)))).toEqual(Array.from(all));
+  });
 });

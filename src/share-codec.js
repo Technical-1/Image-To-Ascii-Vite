@@ -5,13 +5,15 @@ export const SHARE_VERSION = 1;
 
 // Exported with leading underscore = internal, exposed only for unit tests.
 export function _bytesToBase64Url(bytes) {
-  let bin = '';
-  for (let i = 0; i < bytes.length; i++) bin += String.fromCharCode(bytes[i]);
+  const bin = Array.from(bytes, (b) => String.fromCharCode(b)).join('');
   return btoa(bin).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
 export function _base64UrlToBytes(str) {
   const b64 = str.replace(/-/g, '+').replace(/_/g, '/');
+  // len % 4 === 1 is structurally impossible for valid base64 (a fractional
+  // byte) — reject it explicitly rather than relying on atob's behaviour.
+  if (b64.length % 4 === 1) throw new Error('invalid base64url length');
   const pad = b64.length % 4 === 0 ? '' : '='.repeat(4 - (b64.length % 4));
   const bin = atob(b64 + pad);
   const bytes = new Uint8Array(bin.length);
