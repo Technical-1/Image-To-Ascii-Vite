@@ -78,6 +78,7 @@ class ImageAsciiConverter {
         this.currentImage = null;
         this.currentImageDataUrl = null;
         this.currentAscii = null;
+        this.currentShareImage = null;
         this.debounceTimer = null;
         
         // Settings (with localStorage persistence)
@@ -638,7 +639,7 @@ class ImageAsciiConverter {
             const p = document.createElement('p');
             p.className = 'placeholder error';
             p.textContent = `Error: ${error.message}`;
-            output.replaceChildren(p);
+            if (output) output.replaceChildren(p);
         }
     }
 
