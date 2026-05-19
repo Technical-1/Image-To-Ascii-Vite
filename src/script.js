@@ -10,6 +10,7 @@ import {
     applyEdgeDetection,
 } from './ascii-core.js';
 import { DEFAULT_SETTINGS, sanitizeSettings } from './settings-schema.js';
+import { encodeShare, decodeShare, validateShare } from './share-codec.js';
 
 /**
  * Image to ASCII Converter
@@ -832,46 +833,33 @@ class ImageAsciiConverter {
         this.showToast(`Applied "${presetName}" preset`, 'success');
     }
 
-    // Share function
-    async shareAscii() {
-        if (!this.currentAscii) return;
+    // Share function — fully client-side: encodes image + settings into the URL.
+    shareAscii() {
+        if (!this.currentAscii || !this.currentShareImage) return;
 
         const shareBtn = document.getElementById('share-btn');
-        const originalText = shareBtn.textContent;
-        shareBtn.textContent = '⏳ Sharing...';
-        shareBtn.disabled = true;
+        const originalText = shareBtn ? shareBtn.textContent : '';
 
         try {
-            const response = await fetch('/api/share', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    ascii: this.currentAscii,
-                    settings: this.settings
-                })
+            const encoded = encodeShare({
+                settings: this.settings,
+                img: this.currentShareImage,
             });
+            const url = `${location.origin}${location.pathname}#s=${encoded}`;
 
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || 'Failed to create share');
-            }
-
-            // Copy share URL to clipboard
-            await navigator.clipboard.writeText(data.shareUrl);
-            
-            shareBtn.textContent = '✅ Link Copied!';
-            this.showToast(`Share link copied! ${data.shareUrl}`, 'success');
-
+            navigator.clipboard.writeText(url).then(() => {
+                if (shareBtn) shareBtn.textContent = '✅ Link Copied!';
+                this.showToast('Share link copied to clipboard!', 'success');
+            }).catch(() => {
+                this.showToast('Could not copy link to clipboard', 'error');
+            });
         } catch (error) {
-            console.error('Share error:', error);
+            console.error('Share encode error:', error);
             this.showToast('Failed to create share link', 'error');
-            shareBtn.textContent = originalText;
         } finally {
-            setTimeout(() => {
-                shareBtn.textContent = originalText;
-                shareBtn.disabled = false;
-            }, 2000);
+            if (shareBtn) {
+                setTimeout(() => { shareBtn.textContent = originalText; }, 2000);
+            }
         }
     }
 
