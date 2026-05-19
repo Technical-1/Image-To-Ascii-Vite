@@ -287,6 +287,99 @@ class ImageAsciiConverter {
         `;
     }
 
+    setupViewUI() {
+        const app = document.querySelector('#app') || document.body;
+        app.replaceChildren();
+
+        const mkBtn = (id, label, aria) => {
+            const b = document.createElement('button');
+            b.className = 'tool-btn';
+            b.id = id;
+            b.textContent = label;
+            b.setAttribute('aria-label', aria);
+            return b;
+        };
+
+        const layout = document.createElement('div');
+        layout.className = 'app-layout';
+
+        const main = document.createElement('main');
+        main.className = 'main-content';
+
+        const toolbar = document.createElement('div');
+        toolbar.className = 'output-toolbar';
+
+        const left = document.createElement('div');
+        left.className = 'toolbar-left';
+        const title = document.createElement('span');
+        title.className = 'output-title';
+        title.textContent = '🖼️ Shared ASCII Art';
+        left.appendChild(title);
+
+        const right = document.createElement('div');
+        right.className = 'toolbar-right';
+        right.appendChild(mkBtn('copy-btn', '📋 Copy', 'Copy to clipboard'));
+        right.appendChild(mkBtn('export-txt-btn', '📄 TXT', 'Export as text file'));
+        right.appendChild(mkBtn('export-png-btn', '🖼️ PNG', 'Export as PNG image'));
+        right.appendChild(mkBtn('export-html-btn', '🌐 HTML', 'Export as HTML file'));
+        const create = document.createElement('a');
+        create.className = 'tool-btn';
+        create.id = 'create-link';
+        create.href = location.pathname;
+        create.textContent = '✨ Create Your Own';
+        right.appendChild(create);
+
+        toolbar.appendChild(left);
+        toolbar.appendChild(right);
+
+        const output = document.createElement('div');
+        output.className = 'ascii-container';
+        output.id = 'ascii-output';
+        output.setAttribute('role', 'img');
+        output.setAttribute('aria-label', 'Shared ASCII art');
+        const ph = document.createElement('p');
+        ph.className = 'placeholder';
+        ph.textContent = 'Loading shared art…';
+        output.appendChild(ph);
+
+        main.appendChild(toolbar);
+        main.appendChild(output);
+
+        const toast = document.createElement('div');
+        toast.className = 'toast hidden';
+        toast.id = 'toast';
+
+        layout.appendChild(main);
+        layout.appendChild(toast);
+        app.appendChild(layout);
+    }
+
+    attachViewListeners() {
+        document.getElementById('copy-btn').addEventListener('click', () => this.copyAscii());
+        document.getElementById('export-txt-btn').addEventListener('click', () => this.exportAsTxt());
+        document.getElementById('export-png-btn').addEventListener('click', () => this.exportAsPng());
+        document.getElementById('export-html-btn').addEventListener('click', () => this.exportAsHtml());
+    }
+
+    showShareError(message) {
+        const output = document.getElementById('ascii-output');
+        if (!output) return;
+        output.replaceChildren();
+        const h = document.createElement('p');
+        h.className = 'placeholder error';
+        h.textContent = 'This share link is invalid or corrupted.';
+        const detail = document.createElement('p');
+        detail.className = 'placeholder';
+        detail.textContent = message;
+        const a = document.createElement('a');
+        a.href = location.pathname;
+        a.className = 'tool-btn';
+        a.textContent = '✨ Create Your Own';
+        output.append(h, detail, a);
+        ['copy-btn', 'export-txt-btn', 'export-png-btn', 'export-html-btn']
+            .forEach((id) => { const el = document.getElementById(id); if (el) el.disabled = true; });
+    }
+
     attachEventListeners() {
         // File upload
         const uploadArea = document.getElementById('upload-area');
