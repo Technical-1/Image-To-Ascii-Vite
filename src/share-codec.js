@@ -21,8 +21,12 @@ export function _base64UrlToBytes(str) {
   return bytes;
 }
 
+// canvas.toDataURL only ever emits raster formats; SVG data URIs are excluded
+// (XML-entity / memory DoS via Image()), and this is the untrusted-input boundary.
+const RASTER_DATA_URI = /^data:image\/(png|jpe?g|gif|webp);base64,/;
+
 export function encodeShare({ settings, img } = {}) {
-  if (!settings || typeof settings !== 'object') {
+  if (!settings || typeof settings !== 'object' || Array.isArray(settings)) {
     throw new Error('encodeShare: settings object required');
   }
   if (typeof img !== 'string' || !img.startsWith('data:image/')) {
@@ -35,6 +39,12 @@ export function encodeShare({ settings, img } = {}) {
 export function decodeShare(value) {
   if (typeof value !== 'string' || value.length === 0) {
     throw new Error('decodeShare: empty value');
+  }
+  // Reject pathologically large fragments before the synchronous
+  // atob/JSON.parse work blocks the main thread. 8 MB comfortably exceeds a
+  // 2000x2000 PNG data URI (~5 MB worst case under the settings clamp).
+  if (value.length > 8_000_000) {
+    throw new Error('decodeShare: payload too large');
   }
   let json;
   try {
@@ -55,15 +65,16 @@ export function decodeShare(value) {
 }
 
 // `sanitize` is injected (dependency injection) so the codec stays decoupled
-// from settings-schema and is testable with a stub.
+// from settings-schema and is testable with a stub. Only top-level structure is
+// validated here; deep field sanitization is the injected sanitize's job.
 export function validateShare(decoded, sanitize) {
   if (!decoded || decoded.v !== SHARE_VERSION) {
-    throw new Error(`Unsupported share version: ${decoded && decoded.v}`);
+    throw new Error(`Unsupported share version (expected ${SHARE_VERSION})`);
   }
-  if (typeof decoded.img !== 'string' || !decoded.img.startsWith('data:image/')) {
+  if (typeof decoded.img !== 'string' || !RASTER_DATA_URI.test(decoded.img)) {
     throw new Error('Invalid share image');
   }
-  if (!decoded.settings || typeof decoded.settings !== 'object') {
+  if (!decoded.settings || typeof decoded.settings !== 'object' || Array.isArray(decoded.settings)) {
     throw new Error('Invalid share settings');
   }
   return { settings: sanitize(decoded.settings), img: decoded.img };

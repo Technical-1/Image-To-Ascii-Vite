@@ -1,5 +1,16 @@
 import { describe, it, expect } from 'vitest';
-import { _bytesToBase64Url, _base64UrlToBytes } from '../src/share-codec.js';
+import {
+  _bytesToBase64Url,
+  _base64UrlToBytes,
+  encodeShare,
+  decodeShare,
+  validateShare,
+  SHARE_VERSION,
+} from '../src/share-codec.js';
+import { DEFAULT_SETTINGS, sanitizeSettings } from '../src/settings-schema.js';
+
+const realSanitize = (raw) => sanitizeSettings(raw, DEFAULT_SETTINGS);
+const IMG = 'data:image/png;base64,iVBORw0KGgo=';
 
 describe('base64url helpers', () => {
   it('round-trips arbitrary bytes', () => {
@@ -30,12 +41,6 @@ describe('base64url helpers', () => {
     expect(Array.from(_base64UrlToBytes(_bytesToBase64Url(all)))).toEqual(Array.from(all));
   });
 });
-
-import { encodeShare, decodeShare, validateShare, SHARE_VERSION } from '../src/share-codec.js';
-import { DEFAULT_SETTINGS, sanitizeSettings } from '../src/settings-schema.js';
-
-const realSanitize = (raw) => sanitizeSettings(raw, DEFAULT_SETTINGS);
-const IMG = 'data:image/png;base64,iVBORw0KGgo=';
 
 describe('encode/decode round-trip', () => {
   it('preserves settings and img exactly', () => {
@@ -83,5 +88,35 @@ describe('validateShare', () => {
     expect(out.settings.width).toBe(2000);
     expect(out.settings.colorMode).toBe('grayscale');
     expect(out.img).toBe(IMG);
+  });
+});
+
+describe('validateShare hostile input', () => {
+  it('rejects an SVG data URI (raster allowlist)', () => {
+    expect(() => validateShare({ v: SHARE_VERSION, img: 'data:image/svg+xml,<svg/>', settings: {} }, realSanitize)).toThrow(/image/i);
+  });
+  it('rejects an array as settings', () => {
+    expect(() => validateShare({ v: SHARE_VERSION, img: IMG, settings: [] }, realSanitize)).toThrow(/settings/i);
+  });
+  it('rejects falsy/missing/null version', () => {
+    expect(() => validateShare({ v: 0, img: IMG, settings: {} }, realSanitize)).toThrow(/version/i);
+    expect(() => validateShare({ img: IMG, settings: {} }, realSanitize)).toThrow(/version/i);
+    expect(() => validateShare({ v: null, img: IMG, settings: {} }, realSanitize)).toThrow(/version/i);
+    expect(() => validateShare({ v: '1', img: IMG, settings: {} }, realSanitize)).toThrow(/version/i);
+  });
+  it('rejects missing or null img', () => {
+    expect(() => validateShare({ v: SHARE_VERSION, settings: {} }, realSanitize)).toThrow(/image/i);
+    expect(() => validateShare({ v: SHARE_VERSION, img: null, settings: {} }, realSanitize)).toThrow(/image/i);
+  });
+  it('does not pollute via a __proto__ settings key', () => {
+    const out = validateShare(
+      { v: SHARE_VERSION, img: IMG, settings: JSON.parse('{"__proto__":{"width":9999}}') },
+      realSanitize,
+    );
+    expect(out.settings.width).toBe(DEFAULT_SETTINGS.width);
+    expect({}.width).toBeUndefined();
+  });
+  it('rejects an oversized fragment before decoding', () => {
+    expect(() => decodeShare('A'.repeat(8_000_001))).toThrow(/too large/i);
   });
 });
