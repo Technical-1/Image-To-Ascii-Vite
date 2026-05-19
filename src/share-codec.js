@@ -20,3 +20,51 @@ export function _base64UrlToBytes(str) {
   for (let i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
   return bytes;
 }
+
+export function encodeShare({ settings, img } = {}) {
+  if (!settings || typeof settings !== 'object') {
+    throw new Error('encodeShare: settings object required');
+  }
+  if (typeof img !== 'string' || !img.startsWith('data:image/')) {
+    throw new Error('encodeShare: img must be a data:image/ URI');
+  }
+  const json = JSON.stringify({ v: SHARE_VERSION, settings, img });
+  return _bytesToBase64Url(new TextEncoder().encode(json));
+}
+
+export function decodeShare(value) {
+  if (typeof value !== 'string' || value.length === 0) {
+    throw new Error('decodeShare: empty value');
+  }
+  let json;
+  try {
+    json = new TextDecoder().decode(_base64UrlToBytes(value));
+  } catch (e) {
+    throw new Error('decodeShare: invalid base64url');
+  }
+  let obj;
+  try {
+    obj = JSON.parse(json);
+  } catch (e) {
+    throw new Error('decodeShare: invalid JSON');
+  }
+  if (!obj || typeof obj !== 'object') {
+    throw new Error('decodeShare: payload is not an object');
+  }
+  return obj;
+}
+
+// `sanitize` is injected (dependency injection) so the codec stays decoupled
+// from settings-schema and is testable with a stub.
+export function validateShare(decoded, sanitize) {
+  if (!decoded || decoded.v !== SHARE_VERSION) {
+    throw new Error(`Unsupported share version: ${decoded && decoded.v}`);
+  }
+  if (typeof decoded.img !== 'string' || !decoded.img.startsWith('data:image/')) {
+    throw new Error('Invalid share image');
+  }
+  if (!decoded.settings || typeof decoded.settings !== 'object') {
+    throw new Error('Invalid share settings');
+  }
+  return { settings: sanitize(decoded.settings), img: decoded.img };
+}

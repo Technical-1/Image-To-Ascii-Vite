@@ -30,3 +30,58 @@ describe('base64url helpers', () => {
     expect(Array.from(_base64UrlToBytes(_bytesToBase64Url(all)))).toEqual(Array.from(all));
   });
 });
+
+import { encodeShare, decodeShare, validateShare, SHARE_VERSION } from '../src/share-codec.js';
+import { DEFAULT_SETTINGS, sanitizeSettings } from '../src/settings-schema.js';
+
+const realSanitize = (raw) => sanitizeSettings(raw, DEFAULT_SETTINGS);
+const IMG = 'data:image/png;base64,iVBORw0KGgo=';
+
+describe('encode/decode round-trip', () => {
+  it('preserves settings and img exactly', () => {
+    const settings = { ...DEFAULT_SETTINGS, colorMode: 'rgb', width: 120 };
+    const decoded = decodeShare(encodeShare({ settings, img: IMG }));
+    expect(decoded.v).toBe(SHARE_VERSION);
+    expect(decoded.settings).toEqual(settings);
+    expect(decoded.img).toBe(IMG);
+  });
+});
+
+describe('encodeShare guards', () => {
+  it('rejects missing settings', () => {
+    expect(() => encodeShare({ img: IMG })).toThrow();
+  });
+  it('rejects a non-image img', () => {
+    expect(() => encodeShare({ settings: {}, img: 'http://evil/x' })).toThrow();
+  });
+});
+
+describe('decodeShare guards', () => {
+  it('throws on empty input', () => {
+    expect(() => decodeShare('')).toThrow();
+  });
+  it('throws on non-base64url', () => {
+    expect(() => decodeShare('!!!not base64!!!')).toThrow();
+  });
+  it('throws on valid base64url that is not JSON', () => {
+    expect(() => decodeShare(_bytesToBase64Url(new TextEncoder().encode('not json')))).toThrow();
+  });
+});
+
+describe('validateShare', () => {
+  it('rejects an unsupported version', () => {
+    expect(() => validateShare({ v: 999, settings: {}, img: IMG }, realSanitize)).toThrow(/version/i);
+  });
+  it('rejects a missing/invalid image', () => {
+    expect(() => validateShare({ v: SHARE_VERSION, settings: {}, img: 'nope' }, realSanitize)).toThrow();
+  });
+  it('runs settings through the injected sanitizer (clamps hostile values)', () => {
+    const out = validateShare(
+      { v: SHARE_VERSION, settings: { width: 999999, colorMode: 'evil' }, img: IMG },
+      realSanitize,
+    );
+    expect(out.settings.width).toBe(2000);
+    expect(out.settings.colorMode).toBe('grayscale');
+    expect(out.img).toBe(IMG);
+  });
+});
