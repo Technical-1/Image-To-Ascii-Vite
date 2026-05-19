@@ -20,6 +20,10 @@ import { encodeShare, decodeShare, validateShare } from './share-codec.js';
 // Export buttons present in read-only view mode (no share-btn there).
 const VIEW_EXPORT_BUTTON_IDS = ['copy-btn', 'export-txt-btn', 'export-png-btn', 'export-html-btn'];
 
+// Fallback charset when a "custom" charset is empty — MUST be identical in
+// create mode and view mode so a shared link reproduces byte-identically.
+const EMPTY_CUSTOM_CHARSET_FALLBACK = ' .:-=+*#%@';
+
 // Character set presets (matching video project)
 const charsets = {
     standard: ' .:-=+*#%@',
@@ -151,12 +155,13 @@ class ImageAsciiConverter {
 
         this.settings = validated.settings;
         if (this.settings.charsetType === 'custom') {
-            charsets.custom = this.settings.customCharset || ' .:-=+*#%@';
+            charsets.custom = this.settings.customCharset || EMPTY_CUSTOM_CHARSET_FALLBACK;
         }
         this.currentImageDataUrl = validated.img;
 
         this.attachViewListeners();
         this.updateOutputStyle();
+        // fire-and-forget: image-load / conversion errors are handled inside convertToAscii
         this.convertToAscii();
 
         window.addEventListener('resize', () => {
@@ -534,7 +539,7 @@ class ImageAsciiConverter {
         // Custom charset
         document.getElementById('custom-charset').addEventListener('input', (e) => {
             this.settings.customCharset = e.target.value;
-            charsets.custom = e.target.value || ' .:-=+*#%@';
+            charsets.custom = e.target.value || EMPTY_CUSTOM_CHARSET_FALLBACK;
             this.saveSettings();
             this.debounceConvert();
         });
@@ -906,6 +911,8 @@ class ImageAsciiConverter {
         const output = document.getElementById('ascii-output');
         
         if (this.settings.colorMode !== 'grayscale') {
+            // Safe: asciiContent.html is built in pixelsToAscii from numeric
+            // pixel values + escapeHtml(char) only — never from link/network strings.
             output.innerHTML = asciiContent.html;
         } else {
             output.textContent = asciiContent.text;
@@ -931,7 +938,18 @@ class ImageAsciiConverter {
         const availableWidth = container.clientWidth - 40;
         const availableHeight = container.clientHeight - toolbarHeight - 60;
         
-        if (availableWidth <= 0 || availableHeight <= 0) return;
+        if (availableWidth <= 0 || availableHeight <= 0) {
+            // Layout not measured yet (e.g. first view-mode paint): retry once
+            // on the next frame rather than silently leaving text unsized.
+            if (!this._fitRetryScheduled) {
+                this._fitRetryScheduled = true;
+                requestAnimationFrame(() => {
+                    this._fitRetryScheduled = false;
+                    this.fitOutputToContainer();
+                });
+            }
+            return;
+        }
         
         // Calculate font size to fit width
         // Each character is roughly 0.6 times the font size in width (monospace)
@@ -1180,6 +1198,7 @@ class ImageAsciiConverter {
 
     showToast(message, type = 'info') {
         const toast = document.getElementById('toast');
+        if (!toast) return;
         toast.textContent = message;
         toast.className = `toast ${type}`;
         toast.classList.remove('hidden');
