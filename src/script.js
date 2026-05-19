@@ -618,18 +618,20 @@ class ImageAsciiConverter {
 
         try {
             const imageData = await this.processImage();
+            // Snapshot the downscaled canvas (raw resized pixels, pre-effects)
+            // for backend-free URL sharing.
+            this.currentShareImage = this.canvas.toDataURL('image/png');
+
             const asciiContent = this.pixelsToAscii(imageData);
-            
+
             this.currentAscii = asciiContent;
             this.renderAscii(asciiContent);
-            
-            // Enable export buttons
-            document.getElementById('share-btn').disabled = false;
-            document.getElementById('copy-btn').disabled = false;
-            document.getElementById('export-txt-btn').disabled = false;
-            document.getElementById('export-png-btn').disabled = false;
-            document.getElementById('export-html-btn').disabled = false;
-            
+
+            ['share-btn', 'copy-btn', 'export-txt-btn', 'export-png-btn', 'export-html-btn']
+                .forEach((id) => {
+                    const el = document.getElementById(id);
+                    if (el) el.disabled = false;
+                });
         } catch (error) {
             console.error('Conversion error:', error);
             const output = document.getElementById('ascii-output');
