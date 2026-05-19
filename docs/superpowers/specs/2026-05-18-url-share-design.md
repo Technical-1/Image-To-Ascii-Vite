@@ -160,6 +160,8 @@ payload = {
 
 ## 9. Tracker Impact (`docs/STATUS-TRACKER.md`)
 
+> **Errata (2026-05-19):** The claim that this work "resolves C2" (here and in §6) was over-optimistic. C2 (unbounded canvas in *create* mode) is a client-side bug NOT addressed by backend removal and remains OPEN — see `docs/STATUS-TRACKER.md` (C2), which is authoritative.
+
 To be updated as part of this work:
 
 - **Resolved by deletion / N/A:** A2 (share feature decision = replace),

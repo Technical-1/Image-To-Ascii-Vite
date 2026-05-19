@@ -153,6 +153,8 @@ class ImageAsciiConverter {
             return;
         }
 
+        // View mode intentionally never calls saveSettings() — a shared link must
+        // not clobber the visitor's own create-mode localStorage preferences.
         this.settings = validated.settings;
         if (this.settings.charsetType === 'custom') {
             charsets.custom = this.settings.customCharset || EMPTY_CUSTOM_CHARSET_FALLBACK;
@@ -538,8 +540,11 @@ class ImageAsciiConverter {
 
         // Custom charset
         document.getElementById('custom-charset').addEventListener('input', (e) => {
-            this.settings.customCharset = e.target.value;
-            charsets.custom = e.target.value || EMPTY_CUSTOM_CHARSET_FALLBACK;
+            // Cap to 200 to match sanitizeSettings, so a shared link reproduces
+            // bit-identically (the viewer always sees the sanitized <=200 value).
+            const value = e.target.value.slice(0, 200);
+            this.settings.customCharset = value;
+            charsets.custom = value || EMPTY_CUSTOM_CHARSET_FALLBACK;
             this.saveSettings();
             this.debounceConvert();
         });
