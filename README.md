@@ -2,7 +2,7 @@
 
 A feature-rich web application for converting images to ASCII art with real-time preview, color modes, sharing, and multiple export formats. Built with Vite and vanilla JavaScript.
 
-Upload any image and customize the output with adjustable resolution, brightness, contrast, edge detection, and color modes. Share your creations via unique links stored in Upstash Redis, or export as TXT, PNG, or HTML.
+Upload any image and customize the output with adjustable resolution, brightness, contrast, edge detection, and color modes. Share your creations via self-contained links encoded in the URL, or export as TXT, PNG, or HTML.
 
 **Live Demo**: [https://image-to-ascii-nine.vercel.app](https://image-to-ascii-nine.vercel.app)
 
@@ -16,7 +16,7 @@ Upload any image and customize the output with adjustable resolution, brightness
 - **Resolution Scaling** - Percentage-based presets (10%-100%) or custom width/height up to full image dimensions
 - **Multiple Character Sets** - Standard, Detailed, Blocks, Binary, Dots, or fully custom characters
 - **Quick Presets** - One-click styles: Classic, Colored, Blocks, Matrix, High Contrast, Inverted
-- **Shareable Links** - Generate unique share URLs backed by Upstash Redis (30-day expiration)
+- **Shareable Links** - Generate a self-contained share URL — the artwork is encoded directly in the link (no server, no expiry, works offline)
 - **Multi-format Export** - Copy to clipboard, download as TXT, PNG (with color), or standalone HTML
 - **Fit to Container** - Auto-calculates font size to fill the viewport, or manual font/line-height control
 - **Persistent Settings** - All preferences saved to localStorage across sessions
@@ -26,10 +26,8 @@ Upload any image and customize the output with adjustable resolution, brightness
 
 - **Frontend**: Vanilla JavaScript (ES6+), HTML5 Canvas API, CSS3
 - **Build Tool**: Vite 7
-- **Backend**: Vercel Serverless Functions (Node.js)
-- **Database**: Upstash Redis (share link storage)
 - **Hosting**: Vercel with global CDN
-- **IDs**: nanoid for share link generation
+- **Sharing**: URL-fragment encoded (no backend)
 
 ## Getting Started
 
@@ -76,7 +74,7 @@ npm run preview
 6. **Colorize** - In color modes, each character gets an inline `color` style from its source pixel
 7. **Render** - Output is displayed with auto-fitted font sizing
 
-All image processing happens entirely in the browser. The only server-side component is the share API for generating and retrieving shared links.
+All image processing happens entirely in the browser. Sharing encodes the downscaled image plus settings into the URL fragment; opening the link regenerates the art client-side.
 
 ## Character Sets
 
@@ -97,16 +95,14 @@ Image-To-Ascii-Vite/
 ├── package.json            # Dependencies and scripts
 ├── package-lock.json       # Pinned dependency tree (committed for reproducible builds)
 ├── vite.config.js          # Vite build configuration
-├── vercel.json             # Vercel deployment, API routing, CSP/security headers
-├── api/
-│   └── share.js            # Serverless function for share link CRUD (Upstash Redis)
+├── vercel.json             # Vercel deployment, CSP/security headers
 ├── public/
 │   ├── favicon*.png/.svg   # Favicons
-│   ├── logo.png            # Logo / OG image
-│   ├── view.html           # Shared ASCII art viewer page (markup only)
-│   └── viewer.js           # Viewer logic (external file so it works under strict CSP)
+│   └── logo.png            # Logo / OG image
 ├── src/
 │   ├── script.js           # ImageAsciiConverter class - all conversion logic
+│   ├── share-codec.js      # URL-fragment share payload encode/decode
+│   ├── settings-schema.js  # Settings schema, defaults, and clamp/validate
 │   └── style.css           # Full application styles with responsive breakpoints
 ├── tests/
 │   └── ascii-conversion.test.js  # Vitest unit tests for core conversion functions

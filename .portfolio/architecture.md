@@ -32,11 +32,7 @@ flowchart TB
         Render["Render ASCII Output<br/>(Auto-fit or Manual Font)"]
     end
 
-    subgraph Server["Vercel Serverless"]
-        ShareAPI["api/share.js<br/>(POST: create, GET: retrieve)"]
-        Redis["Upstash Redis<br/>(30-day TTL)"]
-        ViewPage["view.html<br/>(Shared Art Viewer)"]
-    end
+    ShareCodec["share-codec.js<br/>(URL fragment encode/decode)"]
 
     Upload --> FileAPI
     FileAPI --> Load
@@ -53,13 +49,11 @@ flowchart TB
     Colorize --> Render
     Render --> UI
     Actions --> Clipboard
-    Actions --> ShareAPI
-    ShareAPI --> Redis
-    Redis --> ViewPage
+    Actions --> ShareCodec
     Converter --> Storage
 
     subgraph Build["Build & Deploy"]
-        Vite["Vite 5 Build Tool"]
+        Vite["Vite 7 Build Tool"]
         Vercel["Vercel Hosting + CDN"]
     end
 
@@ -78,8 +72,7 @@ sequenceDiagram
     participant ImageAsciiConverter
     participant Canvas
     participant Preview
-    participant ShareAPI
-    participant Redis
+    participant ShareCodec
 
     User->>FileInput: Select/drop image file
     FileInput->>FileReader: Read as DataURL
@@ -99,16 +92,14 @@ sequenceDiagram
     ImageAsciiConverter->>Preview: Render ASCII (auto-fit font size)
     ImageAsciiConverter->>ImageAsciiConverter: Save settings to localStorage
 
-    User->>ShareAPI: Click Share button
-    ShareAPI->>Redis: Store ASCII + settings (nanoid key, 30-day TTL)
-    Redis-->>ShareAPI: Return share ID
-    ShareAPI-->>User: Copy share URL to clipboard
+    User->>ShareCodec: Click Share button
+    ShareCodec->>ShareCodec: Encode image + settings into #s= URL fragment
+    ShareCodec-->>User: Copy self-contained share URL to clipboard
 
-    Note over User: Shared link opens view.html
-    User->>ShareAPI: GET /api/share?id=xxx
-    ShareAPI->>Redis: Retrieve data, increment views
-    Redis-->>ShareAPI: Return ASCII + settings
-    ShareAPI-->>User: Render in view.html with auto-fit
+    Note over User: Recipient opens share URL
+    User->>ShareCodec: Browser loads page with #s= fragment
+    ShareCodec->>ShareCodec: Decode #s= → image + settings
+    ShareCodec-->>Preview: Regenerate ASCII art client-side (no network)
 ```
 
 ## Component Descriptions
@@ -118,14 +109,13 @@ sequenceDiagram
 - **Key responsibilities**: File upload handling, Canvas-based pixel extraction, Sobel edge detection, brightness/contrast adjustment, grayscale luminance calculation, character mapping, color mode rendering (Grayscale/ANSI/RGB/Full RGB), auto-fit font sizing, settings persistence via localStorage, share/copy/export operations
 - **Pattern**: Single class with state management, debounced conversion, and DOM-based UI generation
 
-### Share API (`api/share.js`)
-- **Purpose**: Serverless endpoint for creating and retrieving shareable ASCII art links
-- **Key responsibilities**: POST to create a share (generates nanoid, stores in Redis with 30-day TTL), GET to retrieve a share (increments view counter)
-- **Dependencies**: `@upstash/redis`, `nanoid`
+### Share Codec (`src/share-codec.js`)
+- **Purpose**: Client-side encode/decode of share payloads into URL fragments (`#s=`)
+- **Key responsibilities**: Encode downscaled image + settings into a base64url URL fragment, decode and validate incoming `#s=` fragments, drive view-mode entry when a share link is opened
 
-### View Page (`public/view.html`)
-- **Purpose**: Standalone viewer for shared ASCII art with its own auto-fit logic and export buttons
-- **Key responsibilities**: Fetches share data from API, renders ASCII with original color/font settings, provides copy/TXT/PNG/HTML download, displays view count and dimensions
+### Settings Schema (`src/settings-schema.js`)
+- **Purpose**: Authoritative settings schema, defaults, and validation/clamping
+- **Key responsibilities**: Define all setting keys with types and bounds, clamp/validate values from localStorage or share payloads, used by both main converter and share codec
 
 ### Main Entry (`index.html`)
 - **Purpose**: HTML shell with critical inline CSS for loading state, loads `script.js` as ES module
@@ -144,8 +134,8 @@ I chose to implement all image processing entirely in the browser using the HTML
 - **Cost**: No server infrastructure for the core conversion
 - **Simplicity**: The conversion logic is self-contained in a single class
 
-### 2. Hybrid Architecture for Sharing
-The only server-side component is the share API. I used Vercel Serverless Functions with Upstash Redis to add sharing without complicating the core client-side architecture. Shares expire after 30 days to keep storage costs minimal.
+### 2. Client-Side URL Sharing
+Sharing is entirely client-side via URL fragment encoding (`#s=`). The downscaled image and settings are encoded into a self-contained URL; opening the link regenerates the ASCII art without any network request. This removes server costs, eliminates share expiry, and works offline.
 
 ### 3. Class-Based State Management
 I encapsulated all application state in the `ImageAsciiConverter` class with localStorage persistence. This avoids framework dependencies while keeping state organized and recoverable across sessions.
@@ -174,16 +164,16 @@ Rather than requiring users to manually set font sizes, the "Fit to Container" m
 |-----------|---------------|
 | `index.html` | Entry point, critical CSS, loading state |
 | `src/script.js` | ImageAsciiConverter class — all conversion and UI logic |
+| `src/share-codec.js` | URL share payload codec (encode/decode `#s=` fragment) |
+| `src/settings-schema.js` | Settings schema, defaults, clamp/validate |
 | `src/style.css` | Layout, theming, responsive design |
-| `api/share.js` | Share creation/retrieval via Upstash Redis |
-| `public/view.html` | Standalone shared art viewer with export |
 | `vite.config.js` | Build configuration, asset handling |
-| `vercel.json` | Deployment settings, API routing, CORS headers |
+| `vercel.json` | Deployment settings, CSP/security headers |
 
 ## Limitations
 
 - **Large images**: Very high-resolution source images may cause brief processing delays during initial load
 - **Color mode performance**: RGB/Full RGB modes generate a `<span>` per character, which can be slow at high resolutions
-- **Share size limits**: Very large ASCII outputs may approach Redis value size limits
+- **Share URL length**: Very large ASCII outputs produce long `#s=` URL fragments that may exceed some browsers' URL length limits
 - **No animation**: GIF files extract a single frame only
 - **Mobile typing**: Custom character input can be awkward on mobile keyboards
