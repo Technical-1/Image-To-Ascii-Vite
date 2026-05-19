@@ -839,28 +839,34 @@ class ImageAsciiConverter {
 
         const shareBtn = document.getElementById('share-btn');
         const originalText = shareBtn ? shareBtn.textContent : '';
+        const restoreButtonSoon = () => {
+            if (shareBtn) {
+                setTimeout(() => { shareBtn.textContent = originalText; }, 2000);
+            }
+        };
 
+        let encoded;
         try {
-            const encoded = encodeShare({
+            encoded = encodeShare({
                 settings: this.settings,
                 img: this.currentShareImage,
-            });
-            const url = `${location.origin}${location.pathname}#s=${encoded}`;
-
-            navigator.clipboard.writeText(url).then(() => {
-                if (shareBtn) shareBtn.textContent = '✅ Link Copied!';
-                this.showToast('Share link copied to clipboard!', 'success');
-            }).catch(() => {
-                this.showToast('Could not copy link to clipboard', 'error');
             });
         } catch (error) {
             console.error('Share encode error:', error);
             this.showToast('Failed to create share link', 'error');
-        } finally {
-            if (shareBtn) {
-                setTimeout(() => { shareBtn.textContent = originalText; }, 2000);
-            }
+            return;
         }
+
+        const url = `${location.origin}${location.pathname}#s=${encoded}`;
+
+        navigator.clipboard.writeText(url).then(() => {
+            if (shareBtn) shareBtn.textContent = '✅ Link Copied!';
+            this.showToast('Share link copied to clipboard!', 'success');
+            restoreButtonSoon();
+        }).catch(() => {
+            this.showToast('Could not copy link to clipboard', 'error');
+            restoreButtonSoon();
+        });
     }
 
     // Export functions
