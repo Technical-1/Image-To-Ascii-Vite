@@ -1,6 +1,20 @@
 // Pure settings schema + clamp contract. DOM-free; shared by create mode,
 // view mode, and the share codec so all paths enforce identical bounds.
 
+// Shared ASCII grid dimension bounds — the SINGLE source of truth used by
+// the schema clamps, the create-mode UI write paths, and the convert-time
+// safety net in script.js. Tracker C2.
+export const MIN_DIMENSION = 10;
+export const MAX_DIMENSION = 2000;
+
+// Defensive pure clamp for create-mode write paths and convert-time. Non-finite
+// input → MIN_DIMENSION (slider/UI has no per-call default to fall back to,
+// unlike sanitizeSettings which has per-field defaults).
+export function clampDimension(n) {
+    if (!Number.isFinite(n)) return MIN_DIMENSION;
+    return Math.max(MIN_DIMENSION, Math.min(MAX_DIMENSION, Math.round(n)));
+}
+
 export const DEFAULT_SETTINGS = {
   width: 100,
   height: 75,
@@ -32,8 +46,8 @@ export function sanitizeSettings(raw, defaults = DEFAULT_SETTINGS) {
     allowed.includes(val) ? val : fallback;
 
   return {
-    width: clampInt(r.width, 10, 2000, defaults.width),
-    height: clampInt(r.height, 10, 2000, defaults.height),
+    width: clampInt(r.width, MIN_DIMENSION, MAX_DIMENSION, defaults.width),
+    height: clampInt(r.height, MIN_DIMENSION, MAX_DIMENSION, defaults.height),
     fontSize: clampInt(r.fontSize, 4, 20, defaults.fontSize),
     lineHeight: clampFloat(r.lineHeight, 0.5, 1.5, defaults.lineHeight),
     brightness: clampFloat(r.brightness, 0.5, 2.0, defaults.brightness),
