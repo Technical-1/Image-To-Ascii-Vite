@@ -797,8 +797,12 @@ class ImageAsciiConverter {
             const img = new Image();
             
             img.onload = () => {
-                const { width, height } = this.settings;
-                
+                // Convert-time safety net: regardless of how settings got here
+                // (slider, resolution-%, localStorage, share decode), the canvas
+                // can never exceed MAX_DIMENSION. Tracker C2.
+                const width = clampDimension(this.settings.width);
+                const height = clampDimension(this.settings.height);
+
                 this.canvas.width = width;
                 this.canvas.height = height;
                 
