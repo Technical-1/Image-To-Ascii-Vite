@@ -1,5 +1,7 @@
 # Production Hardening Implementation Plan
 
+> **⚠️ HISTORICAL DOCUMENT (2026-03-07).** This plan executed in March 2026 and resolved its 22 audited items, but the project moved substantially afterward (URL-share replaced the Redis backend; canvas-clamp resolved C2; the CSP that this plan shipped silently broke the share viewer and was later corrected). **For the current authoritative project status, see [`docs/STATUS-TRACKER.md`](../STATUS-TRACKER.md).** This file is kept only as a record of the original hardening sprint's intent.
+
 > **For Claude:** REQUIRED SUB-SKILL: Use superpowers:executing-plans to implement this plan task-by-task.
 
 **Goal:** Fix all 22 verified security, robustness, and quality issues identified in PRODUCTION-AUDIT.md to make the app production-ready.

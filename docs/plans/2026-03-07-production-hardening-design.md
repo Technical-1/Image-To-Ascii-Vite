@@ -1,5 +1,7 @@
 # Production Hardening Design
 
+> **⚠️ HISTORICAL DOCUMENT (2026-03-07).** This design captures the intent of the March 2026 hardening sprint. The sprint's tightened CSP (no `'unsafe-inline'` for `script-src`) silently broke `public/view.html`'s inline scripts — a known deferred gap in this design that was fixed afterward in `86458ba`. The Redis backend the design hardens was later removed entirely (URL-share, May 2026). **For the current authoritative project status, see [`docs/STATUS-TRACKER.md`](../STATUS-TRACKER.md).** Kept as a record of the original design's reasoning.
+
 **Date:** 2026-03-07
 **Branch:** Single branch, all fixes sequential, tested after each
 **Issues:** 22 verified from PRODUCTION-AUDIT.md

@@ -106,12 +106,12 @@ Each is a tracked task:
 | ID | Status | Doc | Required change |
 |----|--------|-----|-----------------|
 | E1 | [x] | `README.md` | Already corrected in `86458ba`: "Vite 5"→"Vite 7", accurate structure tree. Re-verify after future changes. |
-| E2 | [ ] | `PRODUCTION-AUDIT.md` | The 22 fixes ARE real, but the doc must (a) record the CSP-vs-inline-script regression and that `86458ba` resolved it, (b) drop or annotate the stale line numbers, (c) change "production ready" framing — it was not, due to the regression and dead Share backend. |
-| E3 | [ ] | `.portfolio/architecture.md` | Says "Vite 5 Build Tool" (actual 7). Update; re-verify the system diagram still matches (now includes `src/ascii-core.js` and `public/viewer.js`). |
-| E4 | [ ] | `.portfolio/stack.md`, `.portfolio/qa.md` | Audit for stale version/feature claims (not yet fully reviewed). Reconcile with current code. |
-| E5 | [ ] | `.project-hub-tasks.json` | 15 tasks, no completion status — stale artifact. Either delete it or regenerate with current status. Decide its role vs. this tracker (this tracker is authoritative). |
-| E6 | [ ] | `FUTURE-IMPROVEMENTS.md` | Its "move viewer to external module" item is now partially done (`86458ba` externalized it; full Vite-bundled module + npm DOMPurify is B1). Reconcile. |
-| E7 | [ ] | `docs/plans/2026-03-07-production-hardening*.md` | Historical record — keep as-is but add a pointer/banner noting this tracker supersedes their status claims. |
+| E2 | [x] | `PRODUCTION-AUDIT.md` | URL-share Task 10 (2026-05-19) annotated share/Redis/CORS/DOMPurify/view.html issues with `Superseded 2026-05-19: share backend removed (URL-share, feat/url-share).` Historical text preserved. Stale line numbers left as historical artifact. |
+| E3 | [x] | `.portfolio/architecture.md` | Updated 2026-05-19 (URL-share Task 10): Server/Vercel-Serverless subgraph removed, sequence diagram switched to client-side codec, Vite 5→7, component table swapped to share-codec.js / settings-schema.js. |
+| E4 | [x] | `.portfolio/stack.md`, `.portfolio/qa.md` | Reconciled 2026-05-20 (commit `7321a3f`): Vite 5→7, removed Upstash Redis/`nanoid` production deps and the entire Backend section, replaced Serverless Share System narrative with URL-fragment client-side codec, share FAQ rewritten. |
+| E5 | [x] | `.project-hub-tasks.json` | URL-share Task 10 added a top-level `superseded` key pointing to STATUS-TRACKER. File kept as a legacy artifact but no longer authoritative. |
+| E6 | [x] | `FUTURE-IMPROVEMENTS.md` | URL-share Task 10 deleted the "Move view.html inline script to external module" item (file deleted) and the "Dynamic OG images per share link" item (no server share). Remaining items intact. |
+| E7 | [x] | `docs/plans/2026-03-07-production-hardening*.md` | Banner added 2026-05-20: both files now open with a "⚠️ HISTORICAL DOCUMENT" blockquote pointing to STATUS-TRACKER as the current authoritative status, noting the CSP-regression gap that was later fixed in `86458ba` and the Redis backend that was later removed entirely. |
 
 ---
 
