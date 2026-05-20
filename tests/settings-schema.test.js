@@ -60,6 +60,7 @@ describe('clampDimension', () => {
   it('clamps above MAX_DIMENSION down to MAX_DIMENSION', () => {
     expect(clampDimension(2001)).toBe(MAX_DIMENSION);
     expect(clampDimension(999999)).toBe(MAX_DIMENSION);
+    expect(clampDimension(2000.5)).toBe(MAX_DIMENSION); // round first (->2001), then clamp
   });
   it('clamps below MIN_DIMENSION up to MIN_DIMENSION', () => {
     expect(clampDimension(9)).toBe(MIN_DIMENSION);
@@ -69,6 +70,7 @@ describe('clampDimension', () => {
   it('rounds non-integer inputs to the nearest integer', () => {
     expect(clampDimension(123.4)).toBe(123);
     expect(clampDimension(123.7)).toBe(124);
+    expect(clampDimension(123.5)).toBe(124); // Math.round rounds half up
   });
   it('returns MIN_DIMENSION for non-finite input (defensive fallback)', () => {
     expect(clampDimension(NaN)).toBe(MIN_DIMENSION);
