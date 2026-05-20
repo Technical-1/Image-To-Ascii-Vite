@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { DEFAULT_SETTINGS, sanitizeSettings } from '../src/settings-schema.js';
+import { MIN_DIMENSION, MAX_DIMENSION, clampDimension } from '../src/settings-schema.js';
 
 describe('sanitizeSettings', () => {
   it('returns defaults for an empty object', () => {
@@ -43,5 +44,40 @@ describe('sanitizeSettings', () => {
     const s = sanitizeSettings({}, DEFAULT_SETTINGS);
     expect(s.preserveAspectRatio).toBe(true);
     expect(s.fitToContainer).toBe(true);
+  });
+});
+
+describe('clampDimension', () => {
+  it('exposes the contract values', () => {
+    expect(MIN_DIMENSION).toBe(10);
+    expect(MAX_DIMENSION).toBe(2000);
+  });
+  it('passes through in-range integers unchanged', () => {
+    expect(clampDimension(100)).toBe(100);
+    expect(clampDimension(MIN_DIMENSION)).toBe(MIN_DIMENSION);
+    expect(clampDimension(MAX_DIMENSION)).toBe(MAX_DIMENSION);
+  });
+  it('clamps above MAX_DIMENSION down to MAX_DIMENSION', () => {
+    expect(clampDimension(2001)).toBe(MAX_DIMENSION);
+    expect(clampDimension(999999)).toBe(MAX_DIMENSION);
+    expect(clampDimension(2000.5)).toBe(MAX_DIMENSION); // round first (->2001), then clamp
+  });
+  it('clamps below MIN_DIMENSION up to MIN_DIMENSION', () => {
+    expect(clampDimension(9)).toBe(MIN_DIMENSION);
+    expect(clampDimension(-50)).toBe(MIN_DIMENSION);
+    expect(clampDimension(0)).toBe(MIN_DIMENSION);
+  });
+  it('rounds non-integer inputs to the nearest integer', () => {
+    expect(clampDimension(123.4)).toBe(123);
+    expect(clampDimension(123.7)).toBe(124);
+    expect(clampDimension(123.5)).toBe(124); // Math.round rounds half up
+  });
+  it('returns MIN_DIMENSION for non-finite input (defensive fallback)', () => {
+    expect(clampDimension(NaN)).toBe(MIN_DIMENSION);
+    expect(clampDimension(Infinity)).toBe(MIN_DIMENSION);
+    expect(clampDimension(-Infinity)).toBe(MIN_DIMENSION);
+    expect(clampDimension(undefined)).toBe(MIN_DIMENSION);
+    expect(clampDimension(null)).toBe(MIN_DIMENSION);
+    expect(clampDimension('nope')).toBe(MIN_DIMENSION);
   });
 });

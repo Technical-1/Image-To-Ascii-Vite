@@ -9,7 +9,7 @@ import {
     ansiColor,
     applyEdgeDetection,
 } from './ascii-core.js';
-import { DEFAULT_SETTINGS, sanitizeSettings } from './settings-schema.js';
+import { DEFAULT_SETTINGS, MAX_DIMENSION, clampDimension, sanitizeSettings } from './settings-schema.js';
 import { encodeShare, decodeShare, validateShare } from './share-codec.js';
 
 /**
@@ -483,10 +483,11 @@ class ImageAsciiConverter {
                 customRes.classList.add('hidden');
                 // Calculate dimensions based on percentage of actual image
                 if (this.currentImage) {
-                    const percent = parseInt(e.target.value) / 100;
-                    const width = Math.max(10, Math.round(this.currentImage.width * percent));
-                    // Divide height by 2 because ASCII chars are taller than wide
-                    const height = Math.max(10, Math.round((this.currentImage.height * percent) / 2));
+                    const percent = parseInt(e.target.value, 10) / 100;
+                    // clampDimension enforces the shared MAX_DIMENSION ceiling.
+                    const width = clampDimension(this.currentImage.width * percent);
+                    // Divide height by 2 because ASCII chars are taller than wide.
+                    const height = clampDimension((this.currentImage.height * percent) / 2);
                     this.settings.width = width;
                     this.settings.height = height;
                     this.updateSliderMax();
@@ -503,8 +504,9 @@ class ImageAsciiConverter {
         // Width slider
         const widthSlider = document.getElementById('width-slider');
         widthSlider.addEventListener('input', (e) => {
-            const value = parseInt(e.target.value);
+            const value = clampDimension(parseInt(e.target.value, 10));
             document.getElementById('width-value').textContent = value;
+            widthSlider.value = value;
             document.getElementById('resolution-select').value = 'custom';
             document.getElementById('custom-resolution').classList.remove('hidden');
             this.settings.width = value;
@@ -515,8 +517,9 @@ class ImageAsciiConverter {
         // Height slider
         const heightSlider = document.getElementById('height-slider');
         heightSlider.addEventListener('input', (e) => {
-            const value = parseInt(e.target.value);
+            const value = clampDimension(parseInt(e.target.value, 10));
             document.getElementById('height-value').textContent = value;
+            heightSlider.value = value;
             document.getElementById('resolution-select').value = 'custom';
             document.getElementById('custom-resolution').classList.remove('hidden');
             this.settings.height = value;
@@ -726,9 +729,9 @@ class ImageAsciiConverter {
                 // Apply default 50% resolution for new images
                 const resolutionSelect = document.getElementById('resolution-select');
                 if (resolutionSelect.value !== 'custom') {
-                    const percent = parseInt(resolutionSelect.value) / 100;
-                    this.settings.width = Math.max(10, Math.round(this.currentImage.width * percent));
-                    this.settings.height = Math.max(10, Math.round((this.currentImage.height * percent) / 2));
+                    const percent = parseInt(resolutionSelect.value, 10) / 100;
+                    this.settings.width = clampDimension(this.currentImage.width * percent);
+                    this.settings.height = clampDimension((this.currentImage.height * percent) / 2);
                     document.getElementById('width-slider').value = this.settings.width;
                     document.getElementById('height-slider').value = this.settings.height;
                     document.getElementById('width-value').textContent = this.settings.width;
@@ -737,8 +740,7 @@ class ImageAsciiConverter {
                 } else if (this.settings.preserveAspectRatio) {
                     // Auto-adjust height to preserve aspect ratio for custom mode
                     const aspectRatio = previewImg.naturalWidth / previewImg.naturalHeight;
-                    const newHeight = Math.round(this.settings.width / aspectRatio / 2);
-                    this.settings.height = Math.max(10, newHeight);
+                    this.settings.height = clampDimension(this.settings.width / aspectRatio / 2);
                     document.getElementById('height-slider').value = this.settings.height;
                     document.getElementById('height-value').textContent = this.settings.height;
                     this.saveSettings();
@@ -795,8 +797,12 @@ class ImageAsciiConverter {
             const img = new Image();
             
             img.onload = () => {
-                const { width, height } = this.settings;
-                
+                // Convert-time safety net: regardless of how settings got here
+                // (slider, resolution-%, localStorage, share decode), the canvas
+                // can never exceed MAX_DIMENSION. Tracker C2.
+                const width = clampDimension(this.settings.width);
+                const height = clampDimension(this.settings.height);
+
                 this.canvas.width = width;
                 this.canvas.height = height;
                 
@@ -832,7 +838,8 @@ class ImageAsciiConverter {
     }
 
     pixelsToAscii(imageData) {
-        const { width, height, colorMode, inverted, charsetType } = this.settings;
+        const { width, height } = imageData; // source of truth: actual decoded extent
+        const { colorMode, inverted, charsetType } = this.settings;
         const pixels = imageData.data;
         
         let chars = charsets[charsetType] || charsets.standard;
@@ -1189,8 +1196,8 @@ class ImageAsciiConverter {
         const heightSlider = document.getElementById('height-slider');
         
         // Set max to the full image dimensions
-        widthSlider.max = this.currentImage.width;
-        heightSlider.max = Math.round(this.currentImage.height / 2); // /2 for char aspect ratio
+        widthSlider.max = Math.min(this.currentImage.width, MAX_DIMENSION);
+        heightSlider.max = Math.min(Math.round(this.currentImage.height / 2), MAX_DIMENSION);
     }
 
     formatFileSize(bytes) {
