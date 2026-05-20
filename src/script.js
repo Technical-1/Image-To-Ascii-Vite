@@ -838,7 +838,8 @@ class ImageAsciiConverter {
     }
 
     pixelsToAscii(imageData) {
-        const { width, height, colorMode, inverted, charsetType } = this.settings;
+        const { width, height } = imageData; // source of truth: actual decoded extent
+        const { colorMode, inverted, charsetType } = this.settings;
         const pixels = imageData.data;
         
         let chars = charsets[charsetType] || charsets.standard;
