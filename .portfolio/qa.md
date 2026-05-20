@@ -9,7 +9,7 @@ Image to ASCII Converter is a web application that transforms any image into ASC
 - **Real-Time Conversion**: Adjusting any setting (resolution, brightness, contrast, character set, color mode) updates the ASCII output instantly with a 150ms debounce for smooth interaction
 - **Color Modes**: Four rendering modes — Grayscale (plain text), ANSI 256-color, RGB per-character coloring, and Full RGB with background tinting
 - **Edge Detection**: Optional Sobel filter that emphasizes outlines and contours in the ASCII output
-- **Shareable Links**: One-click sharing generates a unique URL backed by Upstash Redis with a 30-day expiration. The shared view page includes its own export buttons and view counter
+- **Shareable Links**: One-click sharing generates a self-contained URL — the downscaled image and settings are encoded directly into the link's fragment (`#s=…`). No server, no expiry, no third-party storage; the same app regenerates the art in a read-only view mode
 - **Multi-Format Export**: Copy to clipboard, download as TXT, render to PNG (preserving colors), or export as standalone HTML
 - **Quick Presets**: Six one-click presets (Classic, Colored, Blocks, Matrix, High Contrast, Inverted) that configure multiple settings at once
 - **Persistent Settings**: All preferences automatically saved to localStorage and restored on next visit
@@ -28,8 +28,8 @@ The "Fit to Container" feature calculates the optimal font size by dividing avai
 ### Class-Based Architecture
 I refactored the original module-scoped functions into an `ImageAsciiConverter` class. This encapsulates all state (current image, settings, debounce timer) and provides clean separation between image processing, UI management, and export functionality. Settings persist via localStorage with a defaults-merge pattern.
 
-### Serverless Share System
-The share feature uses a minimal serverless function (`api/share.js`) with Upstash Redis. POST creates a new entry with a nanoid-generated key and 30-day TTL; GET retrieves the data and increments a view counter. The shared viewer (`view.html`) is a fully self-contained page with its own auto-fit logic and export buttons.
+### Client-Side URL Share System
+The share feature encodes the downscaled source image plus settings into the URL fragment using a small pure codec (`src/share-codec.js`): base64url of a JSON `{ v, settings, img: data:image/png;base64,… }`. Because it's a fragment, it never reaches any server. Opening the link puts the same SPA into a read-only view mode that re-runs the shared deterministic pipeline (`src/ascii-core.js`) to regenerate identical output. The codec hardens the untrusted-input boundary with a raster-only data-URI allowlist (no SVG), size and structural guards, and an injected `sanitizeSettings` clamp.
 
 ## Development Story
 
@@ -52,7 +52,7 @@ Characters are taller than they are wide, so ASCII art naturally appears stretch
 - **Full RGB**: Like RGB, but also adds a semi-transparent background tint per character for richer output
 
 ### How does sharing work?
-Clicking "Share" sends the ASCII output and current settings to a serverless API. The API stores the data in Upstash Redis with a unique nanoid-generated ID and 30-day expiration. The generated URL points to `view.html?id=xxx`, which fetches and renders the shared art with its own auto-fit sizing and export buttons.
+Clicking "Share" encodes the downscaled image plus your current settings into the URL fragment (`#s=…`) and copies the resulting link to your clipboard. There's no server — the data never leaves the link. Opening that link in another browser puts the same app into a read-only view mode that decodes the fragment and re-runs the conversion pipeline to render byte-identical art, with the same Copy / TXT / PNG / HTML export buttons available.
 
 ### How does edge detection work?
 I implemented a Sobel filter — a classic image processing technique that uses two 3x3 convolution kernels to detect horizontal and vertical brightness gradients. The gradient magnitude is added to the original pixel brightness, which makes edges appear as brighter (more detailed) characters in the ASCII output.

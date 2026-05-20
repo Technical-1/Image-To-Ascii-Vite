@@ -7,8 +7,8 @@
 | Language | JavaScript (ES6+) | - | Application logic, DOM manipulation, Canvas processing |
 | Markup | HTML5 | - | Application structure, semantic markup |
 | Styling | CSS3 | - | Dark theme, flexbox layout, responsive design |
-| Build Tool | Vite | ^5.0.0 | Development server and production bundler |
-| Runtime | Node.js | 18+ | Build process and serverless functions |
+| Build Tool | Vite | ^7.3.3 | Development server and production bundler |
+| Runtime | Node.js | 18+ | Build process only (no serverless / runtime backend) |
 
 ## Frontend
 
@@ -16,7 +16,7 @@
 - **Architecture**: Single `ImageAsciiConverter` class with DOM-based UI generation
 - **State Management**: Class properties with localStorage persistence
 - **Styling**: CSS custom properties (CSS variables) for theming, flexbox layout
-- **Build Tool**: Vite 5 with ES module support
+- **Build Tool**: Vite 7 with ES module support
 
 ### Why Vanilla JavaScript?
 
@@ -29,18 +29,13 @@ I chose vanilla JavaScript over frameworks like React or Vue because:
 
 ## Backend
 
-- **Runtime**: Vercel Serverless Functions (Node.js)
-- **API Style**: REST (single `/api/share` endpoint with GET/POST)
-- **Database**: Upstash Redis (key-value store with TTL)
-
-The backend exists solely for the sharing feature. The core image-to-ASCII conversion is entirely client-side.
+**There is no backend.** The application is fully static: image-to-ASCII conversion is entirely client-side (Canvas API), and sharing is implemented by encoding the downscaled image plus settings into the URL fragment (`#s=…`) — no server, no database, no expiry. The original Upstash Redis share API was removed in May 2026; see `docs/superpowers/specs/2026-05-18-url-share-design.md`.
 
 ## Infrastructure & Deployment
 
 | Service | Purpose |
 |---------|---------|
-| Vercel | Hosting, serverless functions, CDN, CI/CD |
-| Upstash Redis | Share link storage with 30-day TTL |
+| Vercel | Static hosting + CDN + CI/CD |
 | GitHub | Source code repository |
 
 ### Deployment Configuration
@@ -48,8 +43,7 @@ The backend exists solely for the sharing feature. The core image-to-ASCII conve
 The `vercel.json` file configures:
 - Build command: `npm run build`
 - Output directory: `dist/`
-- API route rewrites: `/api/*` mapped to serverless functions
-- CORS headers for API endpoints
+- Security headers (CSP `script-src 'self'`, X-Frame-Options DENY, Referrer-Policy, X-Content-Type-Options nosniff)
 
 ## Browser APIs Used
 
@@ -66,27 +60,23 @@ The `vercel.json` file configures:
 
 ### Production Dependencies
 
-| Package | Version | Purpose |
-|---------|---------|---------|
-| `@upstash/redis` | ^1.34.0 | Redis client for share link storage (serverless function only) |
-| `nanoid` | ^5.0.0 | Unique ID generation for share links |
+**None.** The shipped application has zero runtime dependencies — all sharing, conversion, and rendering use built-in browser APIs.
 
 ### Development Dependencies
 
 | Package | Version | Purpose |
 |---------|---------|---------|
-| `vite` | ^5.0.0 | Build tool and development server |
+| `vite` | ^7.3.3 | Build tool and development server |
+| `vitest` | ^4.0.18 | Unit-test runner for the pure modules |
 
-### Why Minimal Dependencies?
+### Why Zero Runtime Dependencies?
 
-I intentionally kept dependencies to the absolute minimum because:
+1. **Security**: The smallest possible attack surface — every dependency is a supply-chain risk; this app has none at runtime.
+2. **Maintenance**: No production packages to track or update.
+3. **Bundle size**: The client bundle is ~36 kB (~9 kB gzipped) of hand-written code only.
+4. **Reliability**: No upstream breakage can affect the deployed app.
 
-1. **Security**: Fewer dependencies means smaller attack surface
-2. **Maintenance**: No need to track and update many packages
-3. **Bundle size**: The client-side build is extremely small
-4. **Reliability**: No risk of dependency conflicts or breaking changes
-
-The two production dependencies (`@upstash/redis` and `nanoid`) are only used in the serverless function, not in the client bundle.
+The earlier share backend used `@upstash/redis`, `@upstash/ratelimit`, `nanoid`, and `dompurify`; all four were removed when sharing moved client-side (May 2026).
 
 ## Performance Considerations
 
