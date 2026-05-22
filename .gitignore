@@ -1,14 +1,13 @@
 # Dependencies
 node_modules/
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
 
 # Build output
 dist/
 dist-ssr/
 *.local
-
-# macOS metadata (AppleDouble resource forks, Finder state)
-.DS_Store
-._*
 
 # Editor directories and files
 .vscode/*
