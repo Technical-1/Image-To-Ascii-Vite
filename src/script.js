@@ -1,10 +1,28 @@
 // Import CSS
 import './style.css';
 
+// Core conversion algorithms (shared with the test suite).
+import {
+    adjustBrightnessContrast,
+    weightedLuminance,
+    charForBrightness,
+    ansiColor,
+    applyEdgeDetection,
+} from './ascii-core.js';
+import { DEFAULT_SETTINGS, MAX_DIMENSION, clampDimension, sanitizeSettings } from './settings-schema.js';
+import { encodeShare, decodeShare, validateShare } from './share-codec.js';
+
 /**
  * Image to ASCII Converter
  * Matching features with Video ASCII Converter
  */
+
+// Export buttons present in read-only view mode (no share-btn there).
+const VIEW_EXPORT_BUTTON_IDS = ['copy-btn', 'export-txt-btn', 'export-png-btn', 'export-html-btn'];
+
+// Fallback charset when a "custom" charset is empty — MUST be identical in
+// create mode and view mode so a shared link reproduces byte-identically.
+const EMPTY_CUSTOM_CHARSET_FALLBACK = ' .:-=+*#%@';
 
 // Character set presets (matching video project)
 const charsets = {
@@ -68,6 +86,7 @@ class ImageAsciiConverter {
         this.currentImage = null;
         this.currentImageDataUrl = null;
         this.currentAscii = null;
+        this.currentShareImage = null;
         this.debounceTimer = null;
         
         // Settings (with localStorage persistence)
@@ -84,27 +103,14 @@ class ImageAsciiConverter {
     }
 
     loadSettings() {
-        const defaults = {
-            width: 100,
-            height: 75,
-            charsetType: 'standard',
-            customCharset: '',
-            colorMode: 'grayscale',
-            brightness: 1.0,
-            contrast: 1.0,
-            inverted: false,
-            edgeDetection: false,
-            fontSize: 8,
-            lineHeight: 0.7,
-            preserveAspectRatio: true,
-            fitToContainer: true
-        };
-
         try {
             const saved = localStorage.getItem('imageAsciiSettings');
-            return saved ? { ...defaults, ...JSON.parse(saved) } : defaults;
+            if (saved) {
+                return sanitizeSettings(JSON.parse(saved), DEFAULT_SETTINGS);
+            }
+            return { ...DEFAULT_SETTINGS };
         } catch (e) {
-            return defaults;
+            return { ...DEFAULT_SETTINGS };
         }
     }
 
@@ -117,11 +123,49 @@ class ImageAsciiConverter {
     }
 
     init() {
+        const shareValue = new URLSearchParams(location.hash.slice(1)).get('s');
+        if (shareValue) {
+            this.enterViewMode(shareValue);
+            return;
+        }
+
         this.setupUI();
         this.attachEventListeners();
         this.applySettings();
-        
-        // Re-fit on window resize
+
+        window.addEventListener('resize', () => {
+            if (this.settings.fitToContainer && this.currentAscii) {
+                this.fitOutputToContainer();
+            }
+        });
+    }
+
+    enterViewMode(shareValue) {
+        this.setupViewUI();
+
+        let validated;
+        try {
+            const decoded = decodeShare(shareValue);
+            validated = validateShare(decoded, (raw) => sanitizeSettings(raw, DEFAULT_SETTINGS));
+        } catch (error) {
+            console.error('Share decode error:', error);
+            this.showShareError(error.message);
+            return;
+        }
+
+        // View mode intentionally never calls saveSettings() — a shared link must
+        // not clobber the visitor's own create-mode localStorage preferences.
+        this.settings = validated.settings;
+        if (this.settings.charsetType === 'custom') {
+            charsets.custom = this.settings.customCharset || EMPTY_CUSTOM_CHARSET_FALLBACK;
+        }
+        this.currentImageDataUrl = validated.img;
+
+        this.attachViewListeners();
+        this.updateOutputStyle();
+        // fire-and-forget: image-load / conversion errors are handled inside convertToAscii
+        this.convertToAscii();
+
         window.addEventListener('resize', () => {
             if (this.settings.fitToContainer && this.currentAscii) {
                 this.fitOutputToContainer();
@@ -270,14 +314,14 @@ class ImageAsciiConverter {
                             <span class="output-title">ASCII Output</span>
                         </div>
                         <div class="toolbar-right">
-                            <button class="tool-btn share-btn" id="share-btn" disabled>🔗 Share</button>
-                            <button class="tool-btn" id="copy-btn" disabled>📋 Copy</button>
-                            <button class="tool-btn" id="export-txt-btn" disabled>📄 TXT</button>
-                            <button class="tool-btn" id="export-png-btn" disabled>🖼️ PNG</button>
-                            <button class="tool-btn" id="export-html-btn" disabled>🌐 HTML</button>
+                            <button class="tool-btn share-btn" id="share-btn" disabled aria-label="Share ASCII art">🔗 Share</button>
+                            <button class="tool-btn" id="copy-btn" disabled aria-label="Copy to clipboard">📋 Copy</button>
+                            <button class="tool-btn" id="export-txt-btn" disabled aria-label="Export as text file">📄 TXT</button>
+                            <button class="tool-btn" id="export-png-btn" disabled aria-label="Export as PNG image">🖼️ PNG</button>
+                            <button class="tool-btn" id="export-html-btn" disabled aria-label="Export as HTML file">🌐 HTML</button>
                         </div>
                     </div>
-                    <div class="ascii-container" id="ascii-output">
+                    <div class="ascii-container" id="ascii-output" role="img" aria-label="ASCII art output">
                         <p class="placeholder">Upload an image to see the ASCII art preview</p>
                     </div>
                 </main>
@@ -286,6 +330,104 @@ class ImageAsciiConverter {
                 <div class="toast hidden" id="toast"></div>
             </div>
         `;
+    }
+
+    setupViewUI() {
+        const app = document.querySelector('#app') || document.body;
+        app.replaceChildren();
+
+        const mkBtn = (id, label, aria) => {
+            const b = document.createElement('button');
+            b.className = 'tool-btn';
+            b.id = id;
+            b.textContent = label;
+            b.setAttribute('aria-label', aria);
+            return b;
+        };
+
+        const layout = document.createElement('div');
+        layout.className = 'app-layout';
+
+        const main = document.createElement('main');
+        main.className = 'main-content';
+
+        const toolbar = document.createElement('div');
+        toolbar.className = 'output-toolbar';
+
+        const left = document.createElement('div');
+        left.className = 'toolbar-left';
+        const title = document.createElement('span');
+        title.className = 'output-title';
+        title.textContent = '🖼️ Shared ASCII Art';
+        left.appendChild(title);
+
+        const right = document.createElement('div');
+        right.className = 'toolbar-right';
+        right.appendChild(mkBtn('copy-btn', '📋 Copy', 'Copy to clipboard'));
+        right.appendChild(mkBtn('export-txt-btn', '📄 TXT', 'Export as text file'));
+        right.appendChild(mkBtn('export-png-btn', '🖼️ PNG', 'Export as PNG image'));
+        right.appendChild(mkBtn('export-html-btn', '🌐 HTML', 'Export as HTML file'));
+        const create = document.createElement('a');
+        create.className = 'tool-btn';
+        create.id = 'create-link';
+        create.href = location.pathname;
+        create.textContent = '✨ Create Your Own';
+        right.appendChild(create);
+
+        toolbar.appendChild(left);
+        toolbar.appendChild(right);
+
+        const output = document.createElement('div');
+        output.className = 'ascii-container';
+        output.id = 'ascii-output';
+        output.setAttribute('role', 'img');
+        output.setAttribute('aria-label', 'Shared ASCII art');
+        const ph = document.createElement('p');
+        ph.className = 'placeholder';
+        ph.textContent = 'Loading shared art…';
+        output.appendChild(ph);
+
+        main.appendChild(toolbar);
+        main.appendChild(output);
+
+        const toast = document.createElement('div');
+        toast.className = 'toast hidden';
+        toast.id = 'toast';
+
+        layout.appendChild(main);
+        layout.appendChild(toast);
+        app.appendChild(layout);
+    }
+
+    attachViewListeners() {
+        const handlers = {
+            'copy-btn': () => this.copyAscii(),
+            'export-txt-btn': () => this.exportAsTxt(),
+            'export-png-btn': () => this.exportAsPng(),
+            'export-html-btn': () => this.exportAsHtml(),
+        };
+        VIEW_EXPORT_BUTTON_IDS.forEach((id) => {
+            const el = document.getElementById(id);
+            if (el) el.addEventListener('click', handlers[id]);
+        });
+    }
+
+    showShareError(message) {
+        const output = document.getElementById('ascii-output');
+        if (!output) return;
+        output.replaceChildren();
+        const h = document.createElement('p');
+        h.className = 'placeholder error';
+        h.textContent = 'This share link is invalid or corrupted.';
+        const detail = document.createElement('p');
+        detail.className = 'placeholder';
+        detail.textContent = String(message);
+        const a = document.createElement('a');
+        a.href = location.pathname;
+        a.className = 'tool-btn';
+        a.textContent = '✨ Create Your Own';
+        output.append(h, detail, a);
+        VIEW_EXPORT_BUTTON_IDS.forEach((id) => { const el = document.getElementById(id); if (el) el.disabled = true; });
     }
 
     attachEventListeners() {
@@ -341,10 +483,11 @@ class ImageAsciiConverter {
                 customRes.classList.add('hidden');
                 // Calculate dimensions based on percentage of actual image
                 if (this.currentImage) {
-                    const percent = parseInt(e.target.value) / 100;
-                    const width = Math.max(10, Math.round(this.currentImage.width * percent));
-                    // Divide height by 2 because ASCII chars are taller than wide
-                    const height = Math.max(10, Math.round((this.currentImage.height * percent) / 2));
+                    const percent = parseInt(e.target.value, 10) / 100;
+                    // clampDimension enforces the shared MAX_DIMENSION ceiling.
+                    const width = clampDimension(this.currentImage.width * percent);
+                    // Divide height by 2 because ASCII chars are taller than wide.
+                    const height = clampDimension((this.currentImage.height * percent) / 2);
                     this.settings.width = width;
                     this.settings.height = height;
                     this.updateSliderMax();
@@ -361,8 +504,9 @@ class ImageAsciiConverter {
         // Width slider
         const widthSlider = document.getElementById('width-slider');
         widthSlider.addEventListener('input', (e) => {
-            const value = parseInt(e.target.value);
+            const value = clampDimension(parseInt(e.target.value, 10));
             document.getElementById('width-value').textContent = value;
+            widthSlider.value = value;
             document.getElementById('resolution-select').value = 'custom';
             document.getElementById('custom-resolution').classList.remove('hidden');
             this.settings.width = value;
@@ -373,8 +517,9 @@ class ImageAsciiConverter {
         // Height slider
         const heightSlider = document.getElementById('height-slider');
         heightSlider.addEventListener('input', (e) => {
-            const value = parseInt(e.target.value);
+            const value = clampDimension(parseInt(e.target.value, 10));
             document.getElementById('height-value').textContent = value;
+            heightSlider.value = value;
             document.getElementById('resolution-select').value = 'custom';
             document.getElementById('custom-resolution').classList.remove('hidden');
             this.settings.height = value;
@@ -398,8 +543,11 @@ class ImageAsciiConverter {
 
         // Custom charset
         document.getElementById('custom-charset').addEventListener('input', (e) => {
-            this.settings.customCharset = e.target.value;
-            charsets.custom = e.target.value || ' .:-=+*#%@';
+            // Cap to 200 to match sanitizeSettings, so a shared link reproduces
+            // bit-identically (the viewer always sees the sanitized <=200 value).
+            const value = e.target.value.slice(0, 200);
+            this.settings.customCharset = value;
+            charsets.custom = value || EMPTY_CUSTOM_CHARSET_FALLBACK;
             this.saveSettings();
             this.debounceConvert();
         });
@@ -530,6 +678,12 @@ class ImageAsciiConverter {
         return;
     }
 
+        const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
+        if (file.size > MAX_FILE_SIZE) {
+            this.showToast('File too large. Maximum size is 50MB.', 'error');
+            return;
+        }
+
         const reader = new FileReader();
         reader.onload = (e) => {
             this.currentImageDataUrl = e.target.result;
@@ -540,11 +694,28 @@ class ImageAsciiConverter {
             const imageInfo = document.getElementById('image-info');
             
             previewImg.onload = () => {
-                imageInfo.innerHTML = `
-                    <span><strong>File:</strong> ${file.name}</span>
-                    <span><strong>Size:</strong> ${this.formatFileSize(file.size)}</span>
-                    <span><strong>Dimensions:</strong> ${previewImg.naturalWidth} × ${previewImg.naturalHeight}</span>
-                `;
+                imageInfo.textContent = '';
+
+                const fileSpan = document.createElement('span');
+                const fileLabel = document.createElement('strong');
+                fileLabel.textContent = 'File: ';
+                fileSpan.appendChild(fileLabel);
+                fileSpan.appendChild(document.createTextNode(file.name));
+                imageInfo.appendChild(fileSpan);
+
+                const sizeSpan = document.createElement('span');
+                const sizeLabel = document.createElement('strong');
+                sizeLabel.textContent = 'Size: ';
+                sizeSpan.appendChild(sizeLabel);
+                sizeSpan.appendChild(document.createTextNode(this.formatFileSize(file.size)));
+                imageInfo.appendChild(sizeSpan);
+
+                const dimSpan = document.createElement('span');
+                const dimLabel = document.createElement('strong');
+                dimLabel.textContent = 'Dimensions: ';
+                dimSpan.appendChild(dimLabel);
+                dimSpan.appendChild(document.createTextNode(`${previewImg.naturalWidth} × ${previewImg.naturalHeight}`));
+                imageInfo.appendChild(dimSpan);
                 
                 this.currentImage = {
                     width: previewImg.naturalWidth,
@@ -558,9 +729,9 @@ class ImageAsciiConverter {
                 // Apply default 50% resolution for new images
                 const resolutionSelect = document.getElementById('resolution-select');
                 if (resolutionSelect.value !== 'custom') {
-                    const percent = parseInt(resolutionSelect.value) / 100;
-                    this.settings.width = Math.max(10, Math.round(this.currentImage.width * percent));
-                    this.settings.height = Math.max(10, Math.round((this.currentImage.height * percent) / 2));
+                    const percent = parseInt(resolutionSelect.value, 10) / 100;
+                    this.settings.width = clampDimension(this.currentImage.width * percent);
+                    this.settings.height = clampDimension((this.currentImage.height * percent) / 2);
                     document.getElementById('width-slider').value = this.settings.width;
                     document.getElementById('height-slider').value = this.settings.height;
                     document.getElementById('width-value').textContent = this.settings.width;
@@ -569,8 +740,7 @@ class ImageAsciiConverter {
                 } else if (this.settings.preserveAspectRatio) {
                     // Auto-adjust height to preserve aspect ratio for custom mode
                     const aspectRatio = previewImg.naturalWidth / previewImg.naturalHeight;
-                    const newHeight = Math.round(this.settings.width / aspectRatio / 2);
-                    this.settings.height = Math.max(10, newHeight);
+                    this.settings.height = clampDimension(this.settings.width / aspectRatio / 2);
                     document.getElementById('height-slider').value = this.settings.height;
                     document.getElementById('height-value').textContent = this.settings.height;
                     this.saveSettings();
@@ -598,22 +768,27 @@ class ImageAsciiConverter {
 
         try {
             const imageData = await this.processImage();
+            // Snapshot the downscaled canvas (raw resized pixels, pre-effects)
+            // for backend-free URL sharing.
+            this.currentShareImage = this.canvas.toDataURL('image/png');
+
             const asciiContent = this.pixelsToAscii(imageData);
-            
+
             this.currentAscii = asciiContent;
             this.renderAscii(asciiContent);
-            
-            // Enable export buttons
-            document.getElementById('share-btn').disabled = false;
-            document.getElementById('copy-btn').disabled = false;
-            document.getElementById('export-txt-btn').disabled = false;
-            document.getElementById('export-png-btn').disabled = false;
-            document.getElementById('export-html-btn').disabled = false;
-            
+
+            ['share-btn', 'copy-btn', 'export-txt-btn', 'export-png-btn', 'export-html-btn']
+                .forEach((id) => {
+                    const el = document.getElementById(id);
+                    if (el) el.disabled = false;
+                });
         } catch (error) {
             console.error('Conversion error:', error);
             const output = document.getElementById('ascii-output');
-            output.innerHTML = `<p class="placeholder error">Error: ${error.message}</p>`;
+            const p = document.createElement('p');
+            p.className = 'placeholder error';
+            p.textContent = `Error: ${error.message}`;
+            if (output) output.replaceChildren(p);
         }
     }
 
@@ -622,8 +797,12 @@ class ImageAsciiConverter {
             const img = new Image();
             
             img.onload = () => {
-                const { width, height } = this.settings;
-                
+                // Convert-time safety net: regardless of how settings got here
+                // (slider, resolution-%, localStorage, share decode), the canvas
+                // can never exceed MAX_DIMENSION. Tracker C2.
+                const width = clampDimension(this.settings.width);
+                const height = clampDimension(this.settings.height);
+
                 this.canvas.width = width;
                 this.canvas.height = height;
                 
@@ -647,54 +826,20 @@ class ImageAsciiConverter {
     }
 
     applyEdgeDetection(imageData) {
-        const width = imageData.width;
-        const height = imageData.height;
-        const data = imageData.data;
-        const tempData = new Uint8ClampedArray(data);
-        const threshold = 50;
-
-        const sobelX = [-1, 0, 1, -2, 0, 2, -1, 0, 1];
-        const sobelY = [-1, -2, -1, 0, 0, 0, 1, 2, 1];
-
-        for (let y = 1; y < height - 1; y++) {
-            for (let x = 1; x < width - 1; x++) {
-                let gx = 0, gy = 0;
-
-                for (let ky = -1; ky <= 1; ky++) {
-                    for (let kx = -1; kx <= 1; kx++) {
-                        const idx = ((y + ky) * width + (x + kx)) * 4;
-                        const brightness = (tempData[idx] + tempData[idx + 1] + tempData[idx + 2]) / 3;
-                        
-                        const kernelIdx = (ky + 1) * 3 + (kx + 1);
-                        gx += brightness * sobelX[kernelIdx];
-                        gy += brightness * sobelY[kernelIdx];
-                    }
-                }
-
-                const magnitude = Math.sqrt(gx * gx + gy * gy);
-                const idx = (y * width + x) * 4;
-
-                if (magnitude > threshold) {
-                    data[idx] = Math.min(255, data[idx] + magnitude * 0.5);
-                    data[idx + 1] = Math.min(255, data[idx + 1] + magnitude * 0.5);
-                    data[idx + 2] = Math.min(255, data[idx + 2] + magnitude * 0.5);
-                }
-            }
-        }
+        return applyEdgeDetection(imageData);
     }
 
     adjustBrightnessContrast(r, g, b) {
-        const adjust = (value) => {
-            let adjusted = ((value / 255 - 0.5) * this.settings.contrast + 0.5) * 255;
-            adjusted = adjusted * this.settings.brightness;
-            return Math.max(0, Math.min(255, adjusted));
-        };
-
-        return [adjust(r), adjust(g), adjust(b)];
+        return adjustBrightnessContrast(
+            r, g, b,
+            this.settings.brightness,
+            this.settings.contrast,
+        );
     }
 
     pixelsToAscii(imageData) {
-        const { width, height, colorMode, inverted, charsetType } = this.settings;
+        const { width, height } = imageData; // source of truth: actual decoded extent
+        const { colorMode, inverted, charsetType } = this.settings;
         const pixels = imageData.data;
         
         let chars = charsets[charsetType] || charsets.standard;
@@ -718,11 +863,10 @@ class ImageAsciiConverter {
                 [r, g, b] = this.adjustBrightnessContrast(r, g, b);
 
                 // Calculate brightness using weighted formula
-                const brightness = 0.299 * r + 0.587 * g + 0.114 * b;
+                const brightness = weightedLuminance(r, g, b);
 
                 // Map brightness to character
-                const charIndex = Math.floor((brightness / 255) * (chars.length - 1));
-                const char = chars[charIndex] || ' ';
+                const char = charForBrightness(brightness, chars);
 
                 text += char;
 
@@ -763,16 +907,7 @@ class ImageAsciiConverter {
     }
 
     toAnsiColor(r, g, b, char) {
-        const rIndex = Math.round(r / 255 * 5);
-        const gIndex = Math.round(g / 255 * 5);
-        const bIndex = Math.round(b / 255 * 5);
-        const colorCode = 16 + (rIndex * 36) + (gIndex * 6) + bIndex;
-        
-        // Convert ANSI 256 to approximate RGB for HTML
-        const ansiR = Math.round(rIndex * 51);
-        const ansiG = Math.round(gIndex * 51);
-        const ansiB = Math.round(bIndex * 51);
-        
+        const { r: ansiR, g: ansiG, b: ansiB } = ansiColor(r, g, b);
         return `<span style="color:rgb(${ansiR},${ansiG},${ansiB})">${this.escapeHtml(char)}</span>`;
     }
 
@@ -788,6 +923,8 @@ class ImageAsciiConverter {
         const output = document.getElementById('ascii-output');
         
         if (this.settings.colorMode !== 'grayscale') {
+            // Safe: asciiContent.html is built in pixelsToAscii from numeric
+            // pixel values + escapeHtml(char) only — never from link/network strings.
             output.innerHTML = asciiContent.html;
         } else {
             output.textContent = asciiContent.text;
@@ -813,7 +950,18 @@ class ImageAsciiConverter {
         const availableWidth = container.clientWidth - 40;
         const availableHeight = container.clientHeight - toolbarHeight - 60;
         
-        if (availableWidth <= 0 || availableHeight <= 0) return;
+        if (availableWidth <= 0 || availableHeight <= 0) {
+            // Layout not measured yet (e.g. first view-mode paint): retry once
+            // on the next frame rather than silently leaving text unsized.
+            if (!this._fitRetryScheduled) {
+                this._fitRetryScheduled = true;
+                requestAnimationFrame(() => {
+                    this._fitRetryScheduled = false;
+                    this.fitOutputToContainer();
+                });
+            }
+            return;
+        }
         
         // Calculate font size to fit width
         // Each character is roughly 0.6 times the font size in width (monospace)
@@ -851,47 +999,40 @@ class ImageAsciiConverter {
         this.showToast(`Applied "${presetName}" preset`, 'success');
     }
 
-    // Share function
-    async shareAscii() {
-        if (!this.currentAscii) return;
+    // Share function — fully client-side: encodes image + settings into the URL.
+    shareAscii() {
+        if (!this.currentAscii || !this.currentShareImage) return;
 
         const shareBtn = document.getElementById('share-btn');
-        const originalText = shareBtn.textContent;
-        shareBtn.textContent = '⏳ Sharing...';
-        shareBtn.disabled = true;
-
-        try {
-            const response = await fetch('/api/share', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    ascii: this.currentAscii,
-                    settings: this.settings
-                })
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || 'Failed to create share');
+        const originalText = shareBtn ? shareBtn.textContent : '';
+        const restoreButtonSoon = () => {
+            if (shareBtn) {
+                setTimeout(() => { shareBtn.textContent = originalText; }, 2000);
             }
+        };
 
-            // Copy share URL to clipboard
-            await navigator.clipboard.writeText(data.shareUrl);
-            
-            shareBtn.textContent = '✅ Link Copied!';
-            this.showToast(`Share link copied! ${data.shareUrl}`, 'success');
-
+        let encoded;
+        try {
+            encoded = encodeShare({
+                settings: this.settings,
+                img: this.currentShareImage,
+            });
         } catch (error) {
-            console.error('Share error:', error);
+            console.error('Share encode error:', error);
             this.showToast('Failed to create share link', 'error');
-            shareBtn.textContent = originalText;
-        } finally {
-            setTimeout(() => {
-                shareBtn.textContent = originalText;
-                shareBtn.disabled = false;
-            }, 2000);
+            return;
         }
+
+        const url = `${location.origin}${location.pathname}#s=${encoded}`;
+
+        navigator.clipboard.writeText(url).then(() => {
+            if (shareBtn) shareBtn.textContent = '✅ Link Copied!';
+            this.showToast('Share link copied to clipboard!', 'success');
+            restoreButtonSoon();
+        }).catch(() => {
+            this.showToast('Could not copy link to clipboard', 'error');
+            restoreButtonSoon();
+        });
     }
 
     // Export functions
@@ -929,8 +1070,8 @@ class ImageAsciiConverter {
         ctx.font = `${fontSize}px 'Courier New', monospace`;
 
         // Calculate dimensions
-        const lines = this.currentAscii.text.split('\n');
-        const maxWidth = Math.max(...lines.map(line => ctx.measureText(line).width));
+        const lines = this.currentAscii.text.split('\n').filter(l => l.length > 0);
+        const maxWidth = lines.length > 0 ? Math.max(...lines.map(line => ctx.measureText(line).width)) : 100;
         const canvasHeight = lines.length * fontSize * lineHeight;
 
         canvas.width = maxWidth + 40;
@@ -980,6 +1121,10 @@ class ImageAsciiConverter {
 
         // Download
         canvas.toBlob((blob) => {
+            if (!blob) {
+                this.showToast('PNG export failed', 'error');
+                return;
+            }
             this.downloadBlob(blob, `ascii-art-${Date.now()}.png`);
             this.showToast('Saved as PNG!', 'success');
         });
@@ -989,7 +1134,7 @@ class ImageAsciiConverter {
         if (!this.currentAscii) return;
 
         const { fontSize, lineHeight } = this.settings;
-        const imageName = this.currentImage?.name || 'ASCII Art';
+        const imageName = this.escapeHtml(this.currentImage?.name || 'ASCII Art');
 
         const html = `<!DOCTYPE html>
 <html lang="en">
@@ -1033,15 +1178,16 @@ class ImageAsciiConverter {
     }
 
     downloadBlob(blob, filename) {
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-        a.download = filename;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-}
+        const url = URL.createObjectURL(blob);
+        try {
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+        } finally {
+            URL.revokeObjectURL(url);
+        }
+    }
 
     updateSliderMax() {
         if (!this.currentImage) return;
@@ -1050,8 +1196,8 @@ class ImageAsciiConverter {
         const heightSlider = document.getElementById('height-slider');
         
         // Set max to the full image dimensions
-        widthSlider.max = this.currentImage.width;
-        heightSlider.max = Math.round(this.currentImage.height / 2); // /2 for char aspect ratio
+        widthSlider.max = Math.min(this.currentImage.width, MAX_DIMENSION);
+        heightSlider.max = Math.min(Math.round(this.currentImage.height / 2), MAX_DIMENSION);
     }
 
     formatFileSize(bytes) {
@@ -1064,6 +1210,7 @@ class ImageAsciiConverter {
 
     showToast(message, type = 'info') {
         const toast = document.getElementById('toast');
+        if (!toast) return;
         toast.textContent = message;
         toast.className = `toast ${type}`;
         toast.classList.remove('hidden');
