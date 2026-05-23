@@ -862,63 +862,65 @@ class ImageAsciiConverter {
             chars = chars.split('').reverse().join('');
         }
 
-        let text = '';
-        let html = '';
-        const colors = [];
+        // Per-row arrays + join() avoid the O(n²) string-concat blowup
+        // that `text += char` / `html += span` produced inside the nested loop.
+        const textRows = new Array(height);
+        const htmlRows = new Array(height);
+        const colors = new Array(height);
 
         for (let y = 0; y < height; y++) {
-            const rowColors = [];
+            const textChars = new Array(width);
+            const htmlParts = new Array(width);
+            const rowColors = new Array(width);
+
             for (let x = 0; x < width; x++) {
                 const offset = (y * width + x) * 4;
                 let r = pixels[offset];
                 let g = pixels[offset + 1];
                 let b = pixels[offset + 2];
 
-                // Apply brightness and contrast
                 [r, g, b] = this.adjustBrightnessContrast(r, g, b);
-
-                // Calculate brightness using weighted formula
                 const brightness = weightedLuminance(r, g, b);
-
-                // Map brightness to character
                 const char = charForBrightness(brightness, chars);
 
-                text += char;
-
-                // Apply color based on mode
-                let colorData = null;
+                textChars[x] = char;
 
                 switch (colorMode) {
-                    case 'rgb':
+                    case 'rgb': {
                         const rgb = `rgb(${Math.round(r)},${Math.round(g)},${Math.round(b)})`;
-                        html += `<span style="color:${rgb}">${this.escapeHtml(char)}</span>`;
-                        colorData = { color: rgb };
+                        htmlParts[x] = `<span style="color:${rgb}">${this.escapeHtml(char)}</span>`;
+                        rowColors[x] = { color: rgb };
                         break;
-                    case 'full-rgb':
+                    }
+                    case 'full-rgb': {
                         const frgb = `rgb(${Math.round(r)},${Math.round(g)},${Math.round(b)})`;
                         const bgBrightness = brightness * 0.3;
-                        const bg = `rgba(${Math.round(r)},${Math.round(g)},${Math.round(b)},${bgBrightness/255})`;
-                        html += `<span style="color:${frgb};background:${bg}">${this.escapeHtml(char)}</span>`;
-                        colorData = { color: frgb, background: bg };
+                        const bg = `rgba(${Math.round(r)},${Math.round(g)},${Math.round(b)},${bgBrightness / 255})`;
+                        htmlParts[x] = `<span style="color:${frgb};background:${bg}">${this.escapeHtml(char)}</span>`;
+                        rowColors[x] = { color: frgb, background: bg };
                         break;
+                    }
                     case 'ansi':
-                        const ansiHtml = this.toAnsiColor(r, g, b, char);
-                        html += ansiHtml;
-                        colorData = { color: `rgb(${Math.round(r)},${Math.round(g)},${Math.round(b)})` };
+                        htmlParts[x] = this.toAnsiColor(r, g, b, char);
+                        rowColors[x] = { color: `rgb(${Math.round(r)},${Math.round(g)},${Math.round(b)})` };
                         break;
                     default: // grayscale
-                        html += this.escapeHtml(char);
-                        colorData = null;
+                        htmlParts[x] = this.escapeHtml(char);
+                        rowColors[x] = null;
                 }
-
-                rowColors.push(colorData);
             }
-            text += '\n';
-            html += '\n';
-            colors.push(rowColors);
+
+            textRows[y] = textChars.join('');
+            htmlRows[y] = htmlParts.join('');
+            colors[y] = rowColors;
         }
 
-        return { text, html, colors };
+        // Trailing newline matches the previous `text += '\n'` per-row behavior.
+        return {
+            text: textRows.join('\n') + '\n',
+            html: htmlRows.join('\n') + '\n',
+            colors
+        };
     }
 
     toAnsiColor(r, g, b, char) {
