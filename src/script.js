@@ -58,11 +58,11 @@ const presets = {
         contrast: 1.0
     },
     matrix: {
-        charsetType: 'standard',
+        charsetType: 'detailed',
         colorMode: 'grayscale',
-        inverted: false,
-        brightness: 1.0,
-        contrast: 1.0
+        inverted: true,
+        brightness: 1.3,
+        contrast: 1.4
     },
     highContrast: {
         charsetType: 'detailed',
