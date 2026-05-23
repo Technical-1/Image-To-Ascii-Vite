@@ -91,7 +91,13 @@ class ImageAsciiConverter {
         
         // Settings (with localStorage persistence)
         this.settings = this.loadSettings();
-        
+
+        // Instance-scoped custom charset. Was previously stored on the
+        // module-level `charsets` object which leaked state across instances
+        // and made the module non-reentrant for tests / future multi-canvas
+        // use. Tracked as Hub #133.
+        this.customChars = this.settings.customCharset || EMPTY_CUSTOM_CHARSET_FALLBACK;
+
         // Canvas for processing
         this.canvas = document.createElement('canvas');
         this.ctx = this.canvas.getContext('2d', {
@@ -157,7 +163,7 @@ class ImageAsciiConverter {
         // not clobber the visitor's own create-mode localStorage preferences.
         this.settings = validated.settings;
         if (this.settings.charsetType === 'custom') {
-            charsets.custom = this.settings.customCharset || EMPTY_CUSTOM_CHARSET_FALLBACK;
+            this.customChars = this.settings.customCharset || EMPTY_CUSTOM_CHARSET_FALLBACK;
         }
         this.currentImageDataUrl = validated.img;
 
@@ -562,7 +568,7 @@ class ImageAsciiConverter {
             // bit-identically (the viewer always sees the sanitized <=200 value).
             const value = e.target.value.slice(0, 200);
             this.settings.customCharset = value;
-            charsets.custom = value || EMPTY_CUSTOM_CHARSET_FALLBACK;
+            this.customChars = value || EMPTY_CUSTOM_CHARSET_FALLBACK;
             this.saveSettings();
             this.debounceConvert();
         });
@@ -857,7 +863,9 @@ class ImageAsciiConverter {
         const { colorMode, inverted, charsetType } = this.settings;
         const pixels = imageData.data;
         
-        let chars = charsets[charsetType] || charsets.standard;
+        let chars = charsetType === 'custom'
+            ? (this.customChars || charsets.standard)
+            : (charsets[charsetType] || charsets.standard);
         if (inverted) {
             chars = chars.split('').reverse().join('');
         }
