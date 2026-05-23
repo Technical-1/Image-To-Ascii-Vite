@@ -955,6 +955,25 @@ class ImageAsciiConverter {
         }
     }
     
+    // Measure the actual glyph aspect ratio of the rendered monospace font
+    // once per session. A hardcoded 0.6 is right for Courier New on macOS
+    // but drifts on Windows/Linux fallbacks, producing overflow or wasted
+    // space. Cached on the instance to avoid re-measuring per resize.
+    getCharWidthRatio() {
+        if (this._charWidthRatio !== undefined) return this._charWidthRatio;
+        try {
+            const c = document.createElement('canvas');
+            const ctx = c.getContext('2d');
+            const probeSize = 100;
+            ctx.font = `${probeSize}px "Courier New", monospace`;
+            const measured = ctx.measureText('M').width / probeSize;
+            this._charWidthRatio = measured > 0 && isFinite(measured) ? measured : 0.6;
+        } catch {
+            this._charWidthRatio = 0.6;
+        }
+        return this._charWidthRatio;
+    }
+
     fitOutputToContainer() {
         const output = document.getElementById('ascii-output');
         const container = document.querySelector('.main-content');
@@ -980,9 +999,8 @@ class ImageAsciiConverter {
             return;
         }
         
-        // Calculate font size to fit width
-        // Each character is roughly 0.6 times the font size in width (monospace)
-        const charWidth = 0.6;
+        // Measure once (cached) instead of assuming 0.6.
+        const charWidth = this.getCharWidthRatio();
         const fontSizeFromWidth = availableWidth / (this.settings.width * charWidth);
         
         // Calculate font size to fit height
