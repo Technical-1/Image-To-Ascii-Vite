@@ -1,0 +1,81 @@
+{
+  "superseded": "See docs/STATUS-TRACKER.md — this legacy audit list is obsolete as of 2026-05-19 (URL-share branch).",
+  "tasks": [
+    {
+      "title": "Fix XSS vulnerability in view.html via unsanitized API data rendering",
+      "description": "In public/view.html:387, the container renders HTML from the share API without sanitization. An attacker could craft a malicious share link containing script tags or SVG event handlers in the colorized ASCII output. Use DOMPurify to sanitize HTML, or render only textContent and re-colorize client-side.",
+      "priority": "high"
+    },
+    {
+      "title": "Fix XSS in script.js error display using unsafe DOM insertion",
+      "description": "In src/script.js:616, error messages are injected unsafely into the DOM. Exception messages could contain user-controlled content. Use textContent or createElement to render error messages safely instead.",
+      "priority": "high"
+    },
+    {
+      "title": "Remove sensitive error details from API 500 responses",
+      "description": "In api/share.js:84, error.message is returned to the client in the JSON response. This can leak Redis connection strings, stack traces, or internal paths. Remove the details field in production responses.",
+      "priority": "high"
+    },
+    {
+      "title": "Add payload size limit to share API endpoint",
+      "description": "In api/share.js, there is no validation of the ascii field size in POST requests. An attacker could send arbitrarily large payloads (100MB+) to exhaust Redis storage and Vercel function memory. Add a content-length check (e.g., max 5MB) and validate ascii string length before storing.",
+      "priority": "high"
+    },
+    {
+      "title": "Add rate limiting to the share API",
+      "description": "The /api/share endpoint in api/share.js has no rate limiting. Any client can create unlimited share links or flood GET requests. Implement rate limiting using Upstash Ratelimit (@upstash/ratelimit) or Vercel's built-in rate limiting to prevent abuse and storage exhaustion.",
+      "priority": "high"
+    },
+    {
+      "title": "Restrict CORS from wildcard to specific origin",
+      "description": "Both vercel.json:15 and api/share.js:12 set Access-Control-Allow-Origin to wildcard. This allows any website to call the share API. Restrict to the production domain or use an environment variable for the allowed origin.",
+      "priority": "high"
+    },
+    {
+      "title": "Add file size limit before image processing",
+      "description": "In src/script.js:524-589 (handleFileSelect), there is no file size validation before reading. Loading a very large image into a data URL will freeze the browser tab. Add a size check (e.g., max 50MB) before FileReader.readAsDataURL().",
+      "priority": "high"
+    },
+    {
+      "title": "Fix potential crash with Math.max on empty array in PNG export",
+      "description": "In src/script.js:933, Math.max(...lines.map()) will return -Infinity if lines is empty, causing a 0-width canvas. Same issue exists in public/view.html:501. Add a guard: lines.length > 0 ? Math.max(...) : 0.",
+      "priority": "medium"
+    },
+    {
+      "title": "Fix blob URL memory leak in downloadBlob with try/finally",
+      "description": "In src/script.js:1036-1043, URL.createObjectURL is called but if an exception occurs between createElement and click, the URL is never revoked. Also, the anchor element is unnecessarily appended to DOM. Wrap in try/finally and remove the appendChild/removeChild calls.",
+      "priority": "medium"
+    },
+    {
+      "title": "Handle null blob in canvas.toBlob callback",
+      "description": "In src/script.js:982, canvas.toBlob() callback receives blob but does not check for null. Some browsers return null if canvas is tainted or too large. Add a null check at the start of the callback.",
+      "priority": "medium"
+    },
+    {
+      "title": "Add Content Security Policy headers",
+      "description": "Neither vercel.json nor the HTML files include CSP headers. Without CSP, injected scripts have unrestricted access. Add CSP headers in vercel.json with appropriate directives for self, inline styles, blob/data URIs for images, and self for API connections.",
+      "priority": "medium"
+    },
+    {
+      "title": "Duplicate CORS configuration in vercel.json and api/share.js",
+      "description": "CORS headers are set both in vercel.json:11-20 and programmatically in api/share.js:12-14. This creates maintenance confusion and potential conflicts. Remove one source - preferably keep it only in vercel.json for consistency, or only in code for flexibility.",
+      "priority": "medium"
+    },
+    {
+      "title": "Add accessibility attributes to ASCII output container",
+      "description": "The ASCII output in src/script.js:280 and toolbar buttons lack proper ARIA attributes. The rendered ASCII art should have role=img and an aria-label. Toolbar buttons use emoji-only labels that are unclear to screen readers.",
+      "priority": "low"
+    },
+    {
+      "title": "Add Vitest test suite for core conversion logic",
+      "description": "There are no tests in the project (no test runner in package.json). The pixel-to-ASCII conversion, brightness/contrast adjustment, and edge detection algorithms are complex enough to warrant unit tests. Add Vitest and test the core functions.",
+      "priority": "low"
+    },
+    {
+      "title": "Add lock file to version control for reproducible builds",
+      "description": "The .gitignore file excludes package-lock.json, yarn.lock, and pnpm-lock.yaml. Without a lock file, npm install may resolve different dependency versions across environments, leading to inconsistent builds. Remove the lock file entry from .gitignore and commit the lock file.",
+      "priority": "medium"
+    }
+  ],
+  "summary": "Found 15 issues: 3 XSS vulnerabilities (critical), 4 API security gaps (high), 3 error handling bugs (medium), 2 configuration issues (medium), 1 accessibility gap (low), 1 testing gap (low), 1 build reproducibility issue (medium)"
+}
