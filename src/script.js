@@ -810,6 +810,16 @@ class ImageAsciiConverter {
             p.className = 'placeholder error';
             p.textContent = `Error: ${error.message}`;
             if (output) output.replaceChildren(p);
+
+            // Failed conversion must invalidate the previous-good output so
+            // share/copy/export don't silently re-emit stale art. Tracked as
+            // Hub #134.
+            this.currentAscii = null;
+            ['share-btn', 'copy-btn', 'export-txt-btn', 'export-png-btn', 'export-html-btn']
+                .forEach((id) => {
+                    const el = document.getElementById(id);
+                    if (el) el.disabled = true;
+                });
         }
     }
 
