@@ -47,7 +47,9 @@ export function ansiColor(r, g, b) {
 /**
  * In-place Sobel edge detection. `imageData` is any object with
  * { data: Uint8ClampedArray (RGBA), width, height }. Pixels whose gradient
- * magnitude exceeds the threshold are brightened proportionally.
+ * magnitude exceeds the threshold are replaced with that magnitude (clamped
+ * to 255), producing crisp edges instead of additive halos. Non-edge pixels
+ * are untouched so the original image remains visible underneath.
  */
 export function applyEdgeDetection(imageData) {
     const width = imageData.width;
@@ -78,9 +80,10 @@ export function applyEdgeDetection(imageData) {
             const idx = (y * width + x) * 4;
 
             if (magnitude > threshold) {
-                data[idx] = Math.min(255, data[idx] + magnitude * 0.5);
-                data[idx + 1] = Math.min(255, data[idx + 1] + magnitude * 0.5);
-                data[idx + 2] = Math.min(255, data[idx + 2] + magnitude * 0.5);
+                const v = Math.min(255, magnitude);
+                data[idx] = v;
+                data[idx + 1] = v;
+                data[idx + 2] = v;
             }
         }
     }
