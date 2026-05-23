@@ -503,6 +503,7 @@ class ImageAsciiConverter {
 
         // Width slider
         const widthSlider = document.getElementById('width-slider');
+        const heightSlider = document.getElementById('height-slider');
         widthSlider.addEventListener('input', (e) => {
             const value = clampDimension(parseInt(e.target.value, 10));
             document.getElementById('width-value').textContent = value;
@@ -510,12 +511,19 @@ class ImageAsciiConverter {
             document.getElementById('resolution-select').value = 'custom';
             document.getElementById('custom-resolution').classList.remove('hidden');
             this.settings.width = value;
+            if (this.settings.preserveAspectRatio && this.currentImage) {
+                // /2 because ASCII chars are roughly twice as tall as wide.
+                const aspectRatio = this.currentImage.width / this.currentImage.height;
+                const linkedHeight = clampDimension(Math.round(value / aspectRatio / 2));
+                this.settings.height = linkedHeight;
+                heightSlider.value = linkedHeight;
+                document.getElementById('height-value').textContent = linkedHeight;
+            }
             this.saveSettings();
             this.debounceConvert();
         });
 
         // Height slider
-        const heightSlider = document.getElementById('height-slider');
         heightSlider.addEventListener('input', (e) => {
             const value = clampDimension(parseInt(e.target.value, 10));
             document.getElementById('height-value').textContent = value;
@@ -523,6 +531,13 @@ class ImageAsciiConverter {
             document.getElementById('resolution-select').value = 'custom';
             document.getElementById('custom-resolution').classList.remove('hidden');
             this.settings.height = value;
+            if (this.settings.preserveAspectRatio && this.currentImage) {
+                const aspectRatio = this.currentImage.width / this.currentImage.height;
+                const linkedWidth = clampDimension(Math.round(value * 2 * aspectRatio));
+                this.settings.width = linkedWidth;
+                widthSlider.value = linkedWidth;
+                document.getElementById('width-value').textContent = linkedWidth;
+            }
             this.saveSettings();
             this.debounceConvert();
         });
