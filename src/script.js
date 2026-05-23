@@ -269,7 +269,7 @@ class ImageAsciiConverter {
                                 </select>
                             </div>
                             <div class="control-row hidden" id="custom-charset-group">
-                                <input type="text" id="custom-charset" placeholder="Custom chars..." value="${this.settings.customCharset}">
+                                <input type="text" id="custom-charset" placeholder="Custom chars..." maxlength="200">
                             </div>
                             <div class="control-row">
                                 <label>Color Mode</label>
