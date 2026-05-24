@@ -94,6 +94,10 @@ class ImageAsciiConverter {
         // before mutating instance state, so rapid-fire uploads can't race
         // (older callback lands after newer one and clobbers the active image).
         this._uploadToken = 0;
+
+        // Pending hide-timer for the shared toast element. Cleared on each
+        // new toast so a stale timer can't hide the next message early.
+        this._toastHideTimer = null;
         
         // Settings (with localStorage persistence)
         this.settings = this.loadSettings();
@@ -1285,8 +1289,12 @@ class ImageAsciiConverter {
         toast.className = `toast ${type}`;
         toast.classList.remove('hidden');
 
-        setTimeout(() => {
+        // Cancel any previously-scheduled hide so rapid toasts each get the
+        // full 3s of visibility instead of being cut short by an older timer.
+        clearTimeout(this._toastHideTimer);
+        this._toastHideTimer = setTimeout(() => {
             toast.classList.add('hidden');
+            this._toastHideTimer = null;
         }, 3000);
     }
 }
