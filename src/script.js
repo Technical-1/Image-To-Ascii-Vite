@@ -1161,8 +1161,24 @@ class ImageAsciiConverter {
         const maxWidth = lines.length > 0 ? Math.max(...lines.map(line => ctx.measureText(line).width)) : 100;
         const canvasHeight = lines.length * fontSize * lineHeight;
 
-        canvas.width = maxWidth + 40;
-        canvas.height = canvasHeight + 40;
+        const targetWidth = maxWidth + 40;
+        const targetHeight = canvasHeight + 40;
+
+        // Conservative cap below the smallest known browser canvas-dimension
+        // limit (Chrome's ~32767px). Above this, canvas.toBlob silently
+        // returns null and the user got an unactionable "PNG export failed"
+        // toast. Refuse upfront with a specific message instead. hub-179.
+        const MAX_CANVAS_DIMENSION = 32000;
+        if (targetWidth > MAX_CANVAS_DIMENSION || targetHeight > MAX_CANVAS_DIMENSION) {
+            this.showToast(
+                'PNG export too large for this browser. Lower the resolution or font size and try again.',
+                'error',
+            );
+            return;
+        }
+
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
 
         // Fill background
         ctx.fillStyle = backgroundColor;
