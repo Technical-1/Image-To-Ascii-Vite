@@ -7,9 +7,10 @@
 **Canvas-clamp update (2026-05-20):** Branch `fix/canvas-clamp` resolved C2 — single shared `MAX_DIMENSION = 2000` constant, clamped at every create-mode UI write path AND in `processImage` as the hard safety net; pixel-loop bounds now sourced from `imageData` not `this.settings`. See `docs/superpowers/specs/2026-05-20-canvas-clamp-design.md`.
 
 > **Purpose.** This is the authoritative tracking document for the Image-to-ASCII
-> project. It supersedes the status claims in `PRODUCTION-AUDIT.md`,
-> `FUTURE-IMPROVEMENTS.md`, and `.project-hub-tasks.json` (all of which are stale
-> or incomplete — see Section E). Every finding has a stable ID (A1, B2, …).
+> project. It supersedes `FUTURE-IMPROVEMENTS.md` (which holds deferred items
+> only, not active status). `PRODUCTION-AUDIT.md` and `.project-hub-tasks.json`
+> were deleted on 2026-05-24 — both had been self-marked superseded and were
+> being kept only as legacy artifacts. Every finding has a stable ID (A1, B2, …).
 > Future spec-planning sessions should reference these IDs and update the Status
 > column here. Do not duplicate this list elsewhere.
 
@@ -106,10 +107,10 @@ Each is a tracked task:
 | ID | Status | Doc | Required change |
 |----|--------|-----|-----------------|
 | E1 | [x] | `README.md` | Already corrected in `86458ba`: "Vite 5"→"Vite 7", accurate structure tree. Re-verify after future changes. |
-| E2 | [x] | `PRODUCTION-AUDIT.md` | URL-share Task 10 (2026-05-19) annotated share/Redis/CORS/DOMPurify/view.html issues with `Superseded 2026-05-19: share backend removed (URL-share, feat/url-share).` Historical text preserved. Stale line numbers left as historical artifact. |
+| E2 | [x] | `PRODUCTION-AUDIT.md` | URL-share Task 10 (2026-05-19) annotated share/Redis/CORS/DOMPurify/view.html issues as superseded. **File deleted 2026-05-24** — all 22 items were marked done and this tracker had supplanted it as the authoritative status doc. |
 | E3 | [x] | `.portfolio/architecture.md` | Updated 2026-05-19 (URL-share Task 10): Server/Vercel-Serverless subgraph removed, sequence diagram switched to client-side codec, Vite 5→7, component table swapped to share-codec.js / settings-schema.js. |
 | E4 | [x] | `.portfolio/stack.md`, `.portfolio/qa.md` | Reconciled 2026-05-20 (commit `7321a3f`): Vite 5→7, removed Upstash Redis/`nanoid` production deps and the entire Backend section, replaced Serverless Share System narrative with URL-fragment client-side codec, share FAQ rewritten. |
-| E5 | [x] | `.project-hub-tasks.json` | URL-share Task 10 added a top-level `superseded` key pointing to STATUS-TRACKER. File kept as a legacy artifact but no longer authoritative. |
+| E5 | [x] | `.project-hub-tasks.json` | URL-share Task 10 added a top-level `superseded` key pointing to STATUS-TRACKER. **File deleted 2026-05-24** — Hub task IDs are still used in commit messages, but this stale task list is gone. |
 | E6 | [x] | `FUTURE-IMPROVEMENTS.md` | URL-share Task 10 deleted the "Move view.html inline script to external module" item (file deleted) and the "Dynamic OG images per share link" item (no server share). Remaining items intact. |
 | E7 | [x] | `docs/plans/2026-03-07-production-hardening*.md` | Banner added 2026-05-20: both files now open with a "⚠️ HISTORICAL DOCUMENT" blockquote pointing to STATUS-TRACKER as the current authoritative status, noting the CSP-regression gap that was later fixed in `86458ba` and the Redis backend that was later removed entirely. |
 
@@ -154,6 +155,5 @@ Each bullet = one focused planning session; sequence top-to-bottom.
 
 - A2: Revive Share, or remove it entirely? (Drives U1 and sessions 2–3.)
 - C3: Should "Matrix" become a distinct style, or be removed?
-- E5: Keep `.project-hub-tasks.json` tooling, or retire it in favor of this tracker?
 - Process: are these sessions done here, or via the `/kais-design` / spec-planning
   workflow? (This tracker is the input either way.)
