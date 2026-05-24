@@ -6,6 +6,7 @@ import {
   decodeShare,
   validateShare,
   SHARE_VERSION,
+  MAX_ENCODED_SHARE_LENGTH,
 } from '../src/share-codec.js';
 import { DEFAULT_SETTINGS, sanitizeSettings } from '../src/settings-schema.js';
 
@@ -64,6 +65,15 @@ describe('encodeShare guards', () => {
   });
   it('rejects a non-raster (svg) img', () => {
     expect(() => encodeShare({ settings: {}, img: 'data:image/svg+xml;base64,PHN2Zy8+' })).toThrow();
+  });
+  it('rejects a payload whose encoded length exceeds MAX_ENCODED_SHARE_LENGTH', () => {
+    // Produce an img big enough that base64url-of-JSON breaks the 2MB cap.
+    // ~1.6MB body -> ~2.13MB encoded (base64 is 4/3 of the JSON byte length).
+    const bigImg = 'data:image/png;base64,' + 'A'.repeat(1_600_000);
+    expect(() => encodeShare({ settings: {}, img: bigImg })).toThrow(/too large/i);
+  });
+  it('exposes the encode size cap as a constant', () => {
+    expect(MAX_ENCODED_SHARE_LENGTH).toBeGreaterThan(0);
   });
 });
 

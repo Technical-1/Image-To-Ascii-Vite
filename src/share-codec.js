@@ -3,6 +3,13 @@
 
 export const SHARE_VERSION = 1;
 
+// Encode-time cap. Browsers handle ~2MB URLs in the address bar; above that
+// pasting / link previews / chat apps degrade sharply. The decode side has an
+// 8MB limit as the don't-crash-the-tab safety net — this tighter encode cap
+// surfaces a friendly error at share-creation time so the user can lower
+// resolution instead of producing an unusable link.
+export const MAX_ENCODED_SHARE_LENGTH = 2_000_000;
+
 // Exported with leading underscore = internal, exposed only for unit tests.
 export function _bytesToBase64Url(bytes) {
   const bin = Array.from(bytes, (b) => String.fromCharCode(b)).join('');
@@ -33,7 +40,11 @@ export function encodeShare({ settings, img } = {}) {
     throw new Error('encodeShare: img must be a base64 raster (png/jpeg/gif/webp) data URI');
   }
   const json = JSON.stringify({ v: SHARE_VERSION, settings, img });
-  return _bytesToBase64Url(new TextEncoder().encode(json));
+  const encoded = _bytesToBase64Url(new TextEncoder().encode(json));
+  if (encoded.length > MAX_ENCODED_SHARE_LENGTH) {
+    throw new Error('encodeShare: payload too large');
+  }
+  return encoded;
 }
 
 export function decodeShare(value) {

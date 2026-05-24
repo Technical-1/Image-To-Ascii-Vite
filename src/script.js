@@ -88,6 +88,12 @@ class ImageAsciiConverter {
         this.currentAscii = null;
         this.currentShareImage = null;
         this.debounceTimer = null;
+
+        // Monotonic upload token. A new file upload bumps this; any in-flight
+        // FileReader / Image onload from a previous upload checks the token
+        // before mutating instance state, so rapid-fire uploads can't race
+        // (older callback lands after newer one and clobbers the active image).
+        this._uploadToken = 0;
         
         // Settings (with localStorage persistence)
         this.settings = this.loadSettings();
@@ -705,16 +711,20 @@ class ImageAsciiConverter {
             return;
         }
 
+        const uploadToken = ++this._uploadToken;
+
         const reader = new FileReader();
         reader.onload = (e) => {
+            if (this._uploadToken !== uploadToken) return; // newer upload superseded this one
             this.currentImageDataUrl = e.target.result;
-            
+
             // Show preview
             const previewContainer = document.getElementById('image-preview');
             const previewImg = document.getElementById('preview-img');
             const imageInfo = document.getElementById('image-info');
-            
+
             previewImg.onload = () => {
+                if (this._uploadToken !== uploadToken) return; // newer upload superseded this one
                 imageInfo.textContent = '';
 
                 const fileSpan = document.createElement('span');
@@ -1072,7 +1082,10 @@ class ImageAsciiConverter {
             });
         } catch (error) {
             console.error('Share encode error:', error);
-            this.showToast('Failed to create share link', 'error');
+            const friendly = error.message && error.message.includes('too large')
+                ? 'Image too large to share. Lower the resolution and try again.'
+                : 'Failed to create share link';
+            this.showToast(friendly, 'error');
             return;
         }
 
