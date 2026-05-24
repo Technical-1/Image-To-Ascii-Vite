@@ -174,5 +174,6 @@ Rather than requiring users to manually set font sizes, the "Fit to Container" m
 - **Large images**: Very high-resolution source images may cause brief processing delays during initial load
 - **Color mode performance**: RGB/Full RGB modes generate a `<span>` per character, which can be slow at high resolutions
 - **Share URL length**: The encoder caps the `#s=` fragment at ~2 MB so it remains pasteable in browser address bars and most chat apps. Very high-resolution shares that would exceed the cap fail with a toast prompting the user to lower the resolution slider before retrying
+- **PNG export size**: Browser canvases have a per-dimension maximum (~32000 px). At very high grid resolutions combined with large fonts, the PNG export refuses upfront with a toast that names the two settings the user can lower (resolution / font size) instead of failing silently
 - **No animation**: GIF files extract a single frame only
 - **Mobile typing**: Custom character input can be awkward on mobile keyboards
