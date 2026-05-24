@@ -1150,6 +1150,11 @@ class ImageAsciiConverter {
         // Set font again after resize
         ctx.font = `${fontSize}px 'Courier New', monospace`;
 
+        // Monospace: every glyph in 'Courier New' has the same advance width.
+        // Measure once instead of per-char (hub-174): at max grid size this
+        // saved millions of measureText() calls and seconds of UI freeze.
+        const monoCharWidth = ctx.measureText('M').width;
+
         if (colorMode !== 'grayscale' && this.currentAscii.colors) {
             // Draw character by character with color
             for (let y = 0; y < lines.length; y++) {
@@ -1164,9 +1169,8 @@ class ImageAsciiConverter {
 
                     if (colorData) {
                         if (colorData.background) {
-                            const charWidth = ctx.measureText(char).width;
                             ctx.fillStyle = colorData.background;
-                            ctx.fillRect(currentX, yPos - fontSize * lineHeight, charWidth, fontSize * lineHeight);
+                            ctx.fillRect(currentX, yPos - fontSize * lineHeight, monoCharWidth, fontSize * lineHeight);
                         }
                         ctx.fillStyle = colorData.color;
                     } else {
@@ -1174,7 +1178,7 @@ class ImageAsciiConverter {
                     }
 
                     ctx.fillText(char, currentX, yPos);
-                    currentX += ctx.measureText(char).width;
+                    currentX += monoCharWidth;
                 }
             }
         } else {
