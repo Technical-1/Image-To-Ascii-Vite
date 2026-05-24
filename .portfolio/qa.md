@@ -17,7 +17,7 @@ Image to ASCII Converter is a web application that transforms any image into ASC
 ## Technical Highlights
 
 ### Sobel Edge Detection
-I implemented a Sobel filter that runs on the downscaled Canvas pixel data. The 3x3 convolution kernels detect horizontal and vertical gradients, and the combined magnitude is added to the original pixel brightness. This creates ASCII art that emphasizes edges and outlines while preserving the overall tonal structure. The filter operates on the already-downscaled image, so performance impact is minimal.
+I implemented a Sobel filter that runs on the downscaled Canvas pixel data. The 3x3 convolution kernels detect horizontal and vertical gradients, and pixels whose combined gradient magnitude exceeds a threshold are replaced with that magnitude (clamped to 255). Non-edge pixels are left untouched, so the original image remains visible underneath while edges appear as crisp bright outlines instead of additive halos. The filter operates on the already-downscaled image, so performance impact is minimal.
 
 ### Dual-Output Pipeline
 The `pixelsToAscii` method generates both plain text and colored HTML in a single pixel-processing loop. Grayscale mode renders with `textContent` (no DOM parsing), while color modes use `innerHTML` with per-character `<span>` elements. This dual output means export functions can immediately use the appropriate format without re-processing.
@@ -55,7 +55,7 @@ Characters are taller than they are wide, so ASCII art naturally appears stretch
 Clicking "Share" encodes the downscaled image plus your current settings into the URL fragment (`#s=…`) and copies the resulting link to your clipboard. There's no server — the data never leaves the link. Opening that link in another browser puts the same app into a read-only view mode that decodes the fragment and re-runs the conversion pipeline to render byte-identical art, with the same Copy / TXT / PNG / HTML export buttons available.
 
 ### How does edge detection work?
-I implemented a Sobel filter — a classic image processing technique that uses two 3x3 convolution kernels to detect horizontal and vertical brightness gradients. The gradient magnitude is added to the original pixel brightness, which makes edges appear as brighter (more detailed) characters in the ASCII output.
+I implemented a Sobel filter — a classic image processing technique that uses two 3x3 convolution kernels to detect horizontal and vertical brightness gradients. Pixels whose gradient magnitude exceeds a threshold are replaced with that magnitude (clamped to 255), while non-edge pixels are left untouched. This makes edges appear as crisp brighter characters in the ASCII output without washing out the rest of the image.
 
 ### Can I use colored ASCII output?
 Yes! The app supports four color modes. RGB and Full RGB modes produce colored HTML output that preserves in the PNG and HTML exports. The copy-to-clipboard function outputs plain text regardless of color mode, since terminal/text contexts don't support inline colors.

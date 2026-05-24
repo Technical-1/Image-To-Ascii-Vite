@@ -7,7 +7,7 @@
 | Language | JavaScript (ES6+) | - | Application logic, DOM manipulation, Canvas processing |
 | Markup | HTML5 | - | Application structure, semantic markup |
 | Styling | CSS3 | - | Dark theme, flexbox layout, responsive design |
-| Build Tool | Vite | ^7.3.3 | Development server and production bundler |
+| Build Tool | Vite | ^8.0.14 | Development server and production bundler |
 | Runtime | Node.js | 18+ | Build process only (no serverless / runtime backend) |
 
 ## Frontend
@@ -16,7 +16,7 @@
 - **Architecture**: Single `ImageAsciiConverter` class with DOM-based UI generation
 - **State Management**: Class properties with localStorage persistence
 - **Styling**: CSS custom properties (CSS variables) for theming, flexbox layout
-- **Build Tool**: Vite 7 with ES module support
+- **Build Tool**: Vite 8 with ES module support
 
 ### Why Vanilla JavaScript?
 
@@ -66,8 +66,8 @@ The `vercel.json` file configures:
 
 | Package | Version | Purpose |
 |---------|---------|---------|
-| `vite` | ^7.3.3 | Build tool and development server |
-| `vitest` | ^4.0.18 | Unit-test runner for the pure modules |
+| `vite` | ^8.0.14 | Build tool and development server |
+| `vitest` | ^4.1.7 | Unit-test runner for the pure modules |
 
 ### Why Zero Runtime Dependencies?
 

@@ -25,7 +25,7 @@ Upload any image and customize the output with adjustable resolution, brightness
 ## Tech Stack
 
 - **Frontend**: Vanilla JavaScript (ES6+), HTML5 Canvas API, CSS3
-- **Build Tool**: Vite 7
+- **Build Tool**: Vite 8
 - **Hosting**: Vercel with global CDN
 - **Sharing**: URL-fragment encoded (no backend)
 
@@ -97,17 +97,23 @@ Image-To-Ascii-Vite/
 ├── vite.config.js          # Vite build configuration
 ├── vercel.json             # Vercel deployment, CSP/security headers
 ├── public/
-│   ├── favicon*.png/.svg   # Favicons
-│   └── logo.png            # Logo / OG image
+│   ├── favicon-{16,32,180,512}.png   # Favicons at multiple sizes
+│   ├── favicon.svg                    # Scalable favicon (primary)
+│   └── og-image.png                   # Open Graph / social preview image
 ├── src/
-│   ├── script.js           # ImageAsciiConverter class - all conversion logic
+│   ├── script.js           # ImageAsciiConverter class — UI + conversion driver
+│   ├── ascii-core.js       # Pure DOM-free conversion algorithms (shared with tests)
 │   ├── share-codec.js      # URL-fragment share payload encode/decode
 │   ├── settings-schema.js  # Settings schema, defaults, and clamp/validate
 │   └── style.css           # Full application styles with responsive breakpoints
 ├── tests/
-│   └── ascii-conversion.test.js  # Vitest unit tests for core conversion functions
+│   ├── ascii-conversion.test.js  # Vitest unit tests for ascii-core algorithms
+│   ├── settings-schema.test.js   # Sanitize/clamp contract tests
+│   └── share-codec.test.js       # Encode/decode round-trip + hostile-input tests
 └── docs/
-    └── plans/              # Production hardening plan + design notes
+    ├── STATUS-TRACKER.md   # Authoritative status of all findings (source of truth)
+    ├── plans/              # Production hardening plan + design notes
+    └── superpowers/        # Spec / design records
 ```
 
 ## License

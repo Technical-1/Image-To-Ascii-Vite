@@ -53,7 +53,7 @@ flowchart TB
     Converter --> Storage
 
     subgraph Build["Build & Deploy"]
-        Vite["Vite 7 Build Tool"]
+        Vite["Vite 8 Build Tool"]
         Vercel["Vercel Hosting + CDN"]
     end
 
@@ -173,6 +173,6 @@ Rather than requiring users to manually set font sizes, the "Fit to Container" m
 
 - **Large images**: Very high-resolution source images may cause brief processing delays during initial load
 - **Color mode performance**: RGB/Full RGB modes generate a `<span>` per character, which can be slow at high resolutions
-- **Share URL length**: Very large ASCII outputs produce long `#s=` URL fragments that may exceed some browsers' URL length limits
+- **Share URL length**: The encoder caps the `#s=` fragment at ~2 MB so it remains pasteable in browser address bars and most chat apps. Very high-resolution shares that would exceed the cap fail with a toast prompting the user to lower the resolution slider before retrying
 - **No animation**: GIF files extract a single frame only
 - **Mobile typing**: Custom character input can be awkward on mobile keyboards

@@ -85,7 +85,7 @@ These require the human owner; the agent has no access to the dashboards.
 |----|-----|--------|--------|---------|----------|-------|
 | C1 | MEDIUM | [x] | new | Share URLs are built from `process.env.VERCEL_URL` — the **ephemeral per-deployment** hostname, not the stable production domain. Even with Redis working, generated links rot as deployments rotate. | `api/share.js:71-72` | Use `VERCEL_PROJECT_PRODUCTION_URL` (Vercel's stable domain var) or a configured base URL. Bundle with B2/U3. RESOLVED 2026-05-19 by URL-share (feat/url-share): backend deleted; see docs/superpowers/specs/2026-05-18-url-share-design.md. |
 | C2 | MEDIUM | [x] | new | Canvas dimensions unbounded at conversion time. `sanitizeSettings` clamps width/height ≤2000 only when loading from localStorage; the width/height slider `max` is set to the full image dimension (`updateSliderMax`). Maxing the slider on a large image → `getImageData(0,0,N,…)` with N in the thousands → tab freeze. The 50MB *file*-size limit does not bound *output* dimensions. | `src/script.js` `updateSliderMax` vs `sanitizeSettings`; `processImage` | Redis-independent. Clamp at convert time and/or cap slider max. Add a regression test (logic is testable via `ascii-core.js`-style extraction). NOT resolved by URL-share — this is a client-side create-mode bug (slider max = full image dimension; convert-time clamp still missing), independent of the removed backend. RESOLVED 2026-05-20 by canvas-clamp (fix/canvas-clamp): shared MAX_DIMENSION=2000 constant; clamped at every create-mode UI write path and at convert-time in processImage; pixel-loop dims sourced from imageData; new pure clampDimension helper unit-tested; see docs/superpowers/specs/2026-05-20-canvas-clamp-design.md. |
-| C3 | LOW | [ ] | new | "💚 Matrix" preset is byte-identical to "🟢 Classic" (`standard` / `grayscale` / not inverted). The button visibly does nothing distinct. | `src/script.js` `presets.matrix` vs `presets.classic` | Redis-independent. Either give Matrix a distinct config (e.g. green-tinted, custom charset) or remove it. Product decision. |
+| C3 | LOW | [x] | new | "💚 Matrix" preset is byte-identical to "🟢 Classic" (`standard` / `grayscale` / not inverted). The button visibly does nothing distinct. | `src/script.js` `presets.matrix` vs `presets.classic` | RESOLVED 2026-05-23 by commit `8f09b2d` (hub-168): Matrix is now `charsetType: 'detailed'`, `inverted: true`, `brightness: 1.3`, `contrast: 1.4` — visibly distinct from Classic. |
 | C4 | LOW | [x] | new | View-count increment is a read-modify-write (`get` → `+1` → `set`); concurrent GETs lose updates. | `api/share.js:99-101` | Cosmetic (view counter only). Moot while Redis down. Use Redis atomic `INCR` on a separate key if revived. RESOLVED 2026-05-19 by URL-share (feat/url-share): backend deleted; see docs/superpowers/specs/2026-05-18-url-share-design.md. |
 
 ---
@@ -140,17 +140,13 @@ Each is a tracked task:
 
 Each bullet = one focused planning session; sequence top-to-bottom.
 
-1. **Backup & deploy truth** — A1 (push branch), A3/U2 (what's deployed).
-   Smallest, unblocks confidence. No code design needed.
-2. **Share feature decision** — A2: revive (U1) vs. remove. This binary
-   decision gates the entire B/C-share cluster.
-3. **Share-path hardening** (only if "revive") — B1 (bundle DOMPurify),
-   B2 + C1 + U3 (domain/env-var correctness), C4 (atomic view count).
-4. **Converter robustness** (Redis-independent, can run anytime) — C2 (canvas
-   clamp + test), C3 (Matrix preset).
+1. ~~**Backup & deploy truth** — A1, A3/U2.~~ RESOLVED (branch pushed + URL-share migration deployed).
+2. ~~**Share feature decision** — A2.~~ RESOLVED 2026-05-19: removed in favor of URL-fragment client-side share.
+3. ~~**Share-path hardening** — B1, B2, C1, C4.~~ N/A (backend removed).
+4. ~~**Converter robustness** — C2, C3.~~ RESOLVED: C2 by `fix/canvas-clamp` (2026-05-20), C3 by commit `8f09b2d` (2026-05-23).
 5. **Verification** — D1 (introduce e2e/browser tests; validate the CSP fix
-   for real).
-6. **Documentation reconciliation** — E2–E7.
+   for real). **Only remaining open item.**
+6. ~~**Documentation reconciliation** — E2–E7.~~ RESOLVED (see section E).
 
 ---
 
