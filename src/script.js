@@ -98,6 +98,11 @@ class ImageAsciiConverter {
         // Pending hide-timer for the shared toast element. Cleared on each
         // new toast so a stale timer can't hide the next message early.
         this._toastHideTimer = null;
+
+        // Pending restore-text timer for the share button. Cleared on each
+        // share so two clicks within 2s can't revert the button text at
+        // the wrong moment relative to the user's latest action.
+        this._shareRestoreTimer = null;
         
         // Settings (with localStorage persistence)
         this.settings = this.loadSettings();
@@ -1073,9 +1078,12 @@ class ImageAsciiConverter {
         const shareBtn = document.getElementById('share-btn');
         const originalText = shareBtn ? shareBtn.textContent : '';
         const restoreButtonSoon = () => {
-            if (shareBtn) {
-                setTimeout(() => { shareBtn.textContent = originalText; }, 2000);
-            }
+            if (!shareBtn) return;
+            clearTimeout(this._shareRestoreTimer);
+            this._shareRestoreTimer = setTimeout(() => {
+                shareBtn.textContent = originalText;
+                this._shareRestoreTimer = null;
+            }, 2000);
         };
 
         let encoded;
