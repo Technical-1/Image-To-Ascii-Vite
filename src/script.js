@@ -347,8 +347,9 @@ class ImageAsciiConverter {
                     </div>
                 </main>
 
-                <!-- Toast -->
-                <div class="toast hidden" id="toast"></div>
+                <!-- Toast: aria-live=polite + role=status so screen readers
+                     announce dynamic status messages without interrupting. -->
+                <div class="toast hidden" id="toast" role="status" aria-live="polite"></div>
             </div>
         `;
     }
@@ -414,6 +415,10 @@ class ImageAsciiConverter {
         const toast = document.createElement('div');
         toast.className = 'toast hidden';
         toast.id = 'toast';
+        // Match the create-mode toast so screen readers announce status
+        // messages in shared-art view mode too.
+        toast.setAttribute('role', 'status');
+        toast.setAttribute('aria-live', 'polite');
 
         layout.appendChild(main);
         layout.appendChild(toast);
