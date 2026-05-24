@@ -23,6 +23,10 @@ export function weightedLuminance(r, g, b) {
 
 /**
  * Map a 0..255 brightness onto a character ramp (dark -> light = index 0 -> end).
+ * `chars` may be a string OR an array of grapheme strings. For correct handling
+ * of surrogate-pair characters (e.g. emoji), callers should pass an array built
+ * via Array.from(string) — indexing into a JS string containing surrogates
+ * yields broken half-codepoints. BMP-only strings work either way.
  */
 export function charForBrightness(brightness, chars) {
     const charIndex = Math.floor((brightness / 255) * (chars.length - 1));
@@ -96,9 +100,12 @@ export function applyEdgeDetection(imageData) {
  * One '\n' is emitted per row, including a trailing newline.
  */
 export function pixelsToText(pixels, width, height, { chars, brightness, contrast, inverted }) {
-    let ramp = chars;
+    // Array.from is grapheme-aware (handles surrogate pairs like emoji),
+    // so reversal and indexing operate on full code points instead of
+    // potentially splitting a surrogate pair in half. See hub-177.
+    let glyphs = Array.from(chars);
     if (inverted) {
-        ramp = ramp.split('').reverse().join('');
+        glyphs = glyphs.slice().reverse();
     }
 
     let text = '';
@@ -110,7 +117,7 @@ export function pixelsToText(pixels, width, height, { chars, brightness, contras
                 brightness, contrast,
             );
             const lum = weightedLuminance(r, g, b);
-            text += charForBrightness(lum, ramp);
+            text += charForBrightness(lum, glyphs);
         }
         text += '\n';
     }

@@ -892,11 +892,15 @@ class ImageAsciiConverter {
         const { colorMode, inverted, charsetType } = this.settings;
         const pixels = imageData.data;
         
-        let chars = charsetType === 'custom'
+        const chars = charsetType === 'custom'
             ? (this.customChars || charsets.standard)
             : (charsets[charsetType] || charsets.standard);
+        // Array.from is grapheme-aware so emoji custom charsets (surrogate
+        // pairs) don't get split into broken halves on reversal/indexing.
+        // See hub-177.
+        let glyphs = Array.from(chars);
         if (inverted) {
-            chars = chars.split('').reverse().join('');
+            glyphs = glyphs.slice().reverse();
         }
 
         // Per-row arrays + join() avoid the O(n²) string-concat blowup
@@ -918,7 +922,7 @@ class ImageAsciiConverter {
 
                 [r, g, b] = this.adjustBrightnessContrast(r, g, b);
                 const brightness = weightedLuminance(r, g, b);
-                const char = charForBrightness(brightness, chars);
+                const char = charForBrightness(brightness, glyphs);
 
                 textChars[x] = char;
 

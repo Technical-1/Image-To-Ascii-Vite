@@ -65,6 +65,15 @@ describe('charForBrightness', () => {
     it('handles single-char charset', () => {
         expect(charForBrightness(128, '#')).toBe('#');
     });
+
+    it('handles surrogate-pair charsets when passed as an array of glyphs (hub-177)', () => {
+        // String indexing would yield lone surrogates here; Array.from
+        // gives one element per code point so each emoji is one glyph.
+        const glyphs = Array.from('🎨🔥');
+        expect(glyphs).toHaveLength(2);
+        expect(charForBrightness(0, glyphs)).toBe('🎨');
+        expect(charForBrightness(255, glyphs)).toBe('🔥');
+    });
 });
 
 describe('weightedLuminance', () => {
