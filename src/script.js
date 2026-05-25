@@ -109,6 +109,11 @@ class ImageAsciiConverter {
         // debounced re-render while the user is dragging a slider.
         this._colorBudgetWarned = false;
 
+        // Cap on fitOutputToContainer RAF retries. Without a cap, a
+        // permanently-zero-size container (display:none, hidden tab,
+        // detached subtree) would spin RAF forever.
+        this._fitRetryCount = 0;
+
         // Settings (with localStorage persistence)
         this.settings = this.loadSettings();
 
@@ -1060,10 +1065,13 @@ class ImageAsciiConverter {
         const availableHeight = container.clientHeight - toolbarHeight - 60;
         
         if (availableWidth <= 0 || availableHeight <= 0) {
-            // Layout not measured yet (e.g. first view-mode paint): retry once
-            // on the next frame rather than silently leaving text unsized.
-            if (!this._fitRetryScheduled) {
+            // Layout not measured yet (e.g. first view-mode paint): retry on
+            // the next frame, but cap retries at 10 so a permanently-hidden
+            // container can't spin RAF forever.
+            const MAX_FIT_RETRIES = 10;
+            if (!this._fitRetryScheduled && this._fitRetryCount < MAX_FIT_RETRIES) {
                 this._fitRetryScheduled = true;
+                this._fitRetryCount += 1;
                 requestAnimationFrame(() => {
                     this._fitRetryScheduled = false;
                     this.fitOutputToContainer();
@@ -1071,6 +1079,8 @@ class ImageAsciiConverter {
             }
             return;
         }
+        // Successful measure — reset the counter so a later resize starts fresh.
+        this._fitRetryCount = 0;
         
         // Measure once (cached) instead of assuming 0.6.
         const charWidth = this.getCharWidthRatio();
