@@ -10,7 +10,7 @@ import {
     applyEdgeDetection,
     escapeHtml,
 } from './ascii-core.js';
-import { DEFAULT_SETTINGS, MAX_DIMENSION, clampDimension, sanitizeSettings, isColorRenderTractable } from './settings-schema.js';
+import { DEFAULT_SETTINGS, MIN_DIMENSION, MAX_DIMENSION, clampDimension, sanitizeSettings, isColorRenderTractable } from './settings-schema.js';
 import { encodeShare, decodeShare, validateShare } from './share-codec.js';
 
 /**
@@ -1345,13 +1345,20 @@ class ImageAsciiConverter {
 
     updateSliderMax() {
         if (!this.currentImage) return;
-        
+
         const widthSlider = document.getElementById('width-slider');
         const heightSlider = document.getElementById('height-slider');
-        
-        // Set max to the full image dimensions
-        widthSlider.max = Math.min(this.currentImage.width, MAX_DIMENSION);
-        heightSlider.max = Math.min(Math.round(this.currentImage.height / 2), MAX_DIMENSION);
+
+        // Floor at MIN_DIMENSION so a tiny image (e.g. a 5x5 favicon)
+        // doesn't produce a slider whose max is below its hardcoded min=10.
+        widthSlider.max = Math.max(
+            MIN_DIMENSION,
+            Math.min(this.currentImage.width, MAX_DIMENSION),
+        );
+        heightSlider.max = Math.max(
+            MIN_DIMENSION,
+            Math.min(Math.round(this.currentImage.height / 2), MAX_DIMENSION),
+        );
     }
 
     formatFileSize(bytes) {
