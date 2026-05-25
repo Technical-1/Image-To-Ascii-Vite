@@ -1313,14 +1313,14 @@ class ImageAsciiConverter {
 
     downloadBlob(blob, filename) {
         const url = URL.createObjectURL(blob);
-        try {
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = filename;
-            a.click();
-        } finally {
-            URL.revokeObjectURL(url);
-        }
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = filename;
+        a.click();
+        // Defer revoke so the download latches onto the URL first. Some
+        // browsers (older Safari, certain Firefox configurations) cancel
+        // the save if the URL is revoked synchronously after click().
+        setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
 
     updateSliderMax() {
