@@ -1139,6 +1139,11 @@ class ImageAsciiConverter {
 
         const url = `${location.origin}${location.pathname}#s=${encoded}`;
 
+        if (!navigator.clipboard?.writeText) {
+            this.showToast('Clipboard not available — copy the URL from the address bar after navigating to it.', 'error');
+            return;
+        }
+
         navigator.clipboard.writeText(url).then(() => {
             if (shareBtn) shareBtn.textContent = '✅ Link Copied!';
             this.showToast('Share link copied to clipboard!', 'success');
@@ -1152,6 +1157,11 @@ class ImageAsciiConverter {
     // Export functions
     copyAscii() {
         if (!this.currentAscii) return;
+
+        if (!navigator.clipboard?.writeText) {
+            this.showToast('Clipboard not available in this browser', 'error');
+            return;
+        }
 
         navigator.clipboard.writeText(this.currentAscii.text).then(() => {
             this.showToast('Copied to clipboard!', 'success');
