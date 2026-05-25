@@ -1184,7 +1184,7 @@ class ImageAsciiConverter {
     exportAsTxt() {
         if (!this.currentAscii) return;
 
-        const blob = new Blob([this.currentAscii.text], { type: 'text/plain' });
+        const blob = new Blob([this.currentAscii.text], { type: 'text/plain;charset=utf-8' });
         this.downloadBlob(blob, `ascii-art-${Date.now()}.txt`);
         this.showToast('Saved as TXT!', 'success');
     }
@@ -1326,7 +1326,7 @@ class ImageAsciiConverter {
 </body>
 </html>`;
 
-        const blob = new Blob([html], { type: 'text/html' });
+        const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
         this.downloadBlob(blob, `ascii-art-${Date.now()}.html`);
         this.showToast('Saved as HTML!', 'success');
     }
