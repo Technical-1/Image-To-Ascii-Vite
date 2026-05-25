@@ -72,8 +72,11 @@ All modern browsers (Chrome 90+, Firefox 88+, Safari 14+, Edge 90+) are supporte
 ### Can I use emoji or other multi-byte characters in custom character sets?
 Yes. The character-ramp pipeline iterates with `Array.from`, which is grapheme-aware, so each emoji (or other surrogate-pair glyph) is treated as a single character instead of being split into two broken halves. You can paste a string like `🎨🔥💎` into the custom charset input and the brightness ramp will use one emoji per stop.
 
-### Is the app accessible to screen-reader users?
-Yes — all toolbar buttons have `aria-label` attributes, the ASCII output container has `role="img"` with a descriptive label, and the toast notification element uses `role="status"` with `aria-live="polite"` so status messages like "Image loaded", "Saved as PNG!", and error toasts are announced as they appear.
+### Is the app accessible to screen-reader and keyboard users?
+Yes on both counts. The upload area is exposed as `role="button"` with `tabindex="0"` and an `aria-label`, and it responds to Enter and Space — so a keyboard-only user can Tab to it and trigger the file picker without ever touching the mouse. All toolbar buttons have `aria-label` attributes, the ASCII output container has `role="img"` with a descriptive label, and the toast notification element uses `role="status"` with `aria-live="polite"` so status messages like "Image loaded", "Saved as PNG!", and error toasts are announced as they appear.
+
+### What happens if I crank the resolution to max with a color mode on?
+The converter clamps the underlying canvas at 2000×2000 (4M pixels). Above 500,000 cells in a color mode, the renderer falls back to grayscale text and shows a one-shot toast explaining that color rendering needs a lower resolution — without that guard, generating 4M `<span>` elements would allocate around 150 MB of DOM nodes and freeze (or crash) mobile Safari. Grayscale rendering is one `textContent` write and stays fast all the way up to the canvas clamp.
 
 ### How do I report bugs or suggest features?
 The project is hosted on GitHub. You can open an issue or pull request at [github.com/Technical-1/Image-To-Ascii-Vite](https://github.com/Technical-1/Image-To-Ascii-Vite).

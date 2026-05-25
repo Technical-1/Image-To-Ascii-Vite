@@ -112,9 +112,13 @@ sequenceDiagram
 - **Purpose**: Client-side encode/decode of share payloads into URL fragments (`#s=`)
 - **Key responsibilities**: Encode downscaled image + settings into a base64url URL fragment, decode and validate incoming `#s=` fragments, drive view-mode entry when a share link is opened
 
+### ASCII Core (`src/ascii-core.js`)
+- **Purpose**: Pure, DOM-free conversion algorithms — the same code the test suite imports, so a regression in the production hot path fails the unit tests
+- **Key responsibilities**: Brightness/contrast adjustment, weighted luminance, character ramp mapping, ANSI 256-color quantization, Sobel edge detection, pure HTML escape (avoids per-character DOM allocations on the color-render hot path)
+
 ### Settings Schema (`src/settings-schema.js`)
 - **Purpose**: Authoritative settings schema, defaults, and validation/clamping
-- **Key responsibilities**: Define all setting keys with types and bounds, clamp/validate values from localStorage or share payloads, used by both main converter and share codec
+- **Key responsibilities**: Define all setting keys with types and bounds, clamp/validate values from localStorage or share payloads, used by both main converter and share codec. Also owns the cross-cutting render-budget guards: `MAX_DIMENSION` (canvas clamp) and `MAX_COLOR_CELLS` / `isColorRenderTractable` (per-pixel-`<span>` cell budget)
 
 ### Main Entry (`index.html`)
 - **Purpose**: HTML shell with critical inline CSS for loading state, loads `script.js` as ES module
@@ -151,8 +155,10 @@ I implemented a 150ms debounce on all setting changes to balance responsiveness 
 ### 6. Dual Color Output Pipeline
 The converter generates both plain text and colored HTML in a single pass. This enables:
 - Grayscale mode using `textContent` (fast, no DOM overhead)
-- Color modes using `innerHTML` with per-character `<span>` elements
+- Color modes using per-character `<span>` elements with inline styles
 - Export functions can choose the appropriate format without re-conversion
+
+A 500k-cell budget (`MAX_COLOR_CELLS`) guards the per-character `<span>` path: above the budget, both the HTML build in `pixelsToAscii` and the render step in `renderAscii` fall back to text-only output with a one-shot toast. This prevents the 4M-node DOM (~150 MB) that 2000×2000 color rendering would otherwise produce from OOMing mobile Safari.
 
 ### 7. Auto-Fit Font Sizing
 Rather than requiring users to manually set font sizes, the "Fit to Container" mode calculates the optimal font size based on the viewport dimensions and ASCII grid size. This ensures the output always fills the available space.
@@ -163,8 +169,9 @@ Rather than requiring users to manually set font sizes, the "Fit to Container" m
 |-----------|---------------|
 | `index.html` | Entry point, critical CSS, loading state |
 | `src/script.js` | ImageAsciiConverter class — all conversion and UI logic |
+| `src/ascii-core.js` | Pure conversion algorithms (shared with the test suite) |
 | `src/share-codec.js` | URL share payload codec (encode/decode `#s=` fragment) |
-| `src/settings-schema.js` | Settings schema, defaults, clamp/validate |
+| `src/settings-schema.js` | Settings schema, defaults, clamp/validate, render-budget constants |
 | `src/style.css` | Layout, theming, responsive design |
 | `vite.config.js` | Build configuration, asset handling |
 | `vercel.json` | Deployment settings, CSP/security headers |
@@ -172,7 +179,7 @@ Rather than requiring users to manually set font sizes, the "Fit to Container" m
 ## Limitations
 
 - **Large images**: Very high-resolution source images may cause brief processing delays during initial load
-- **Color mode performance**: RGB/Full RGB modes generate a `<span>` per character, which can be slow at high resolutions
+- **Color mode performance**: RGB/Full RGB/ANSI modes generate a `<span>` per character. Above the 500k-cell budget (`MAX_COLOR_CELLS` in `settings-schema.js`), the renderer falls back to grayscale text and shows a one-shot toast — without this guard, a 2000×2000 color grid would allocate ~4M DOM nodes and OOM mobile Safari
 - **Share URL length**: The encoder caps the `#s=` fragment at ~2 MB so it remains pasteable in browser address bars and most chat apps. Very high-resolution shares that would exceed the cap fail with a toast prompting the user to lower the resolution slider before retrying
 - **PNG export size**: Browser canvases have a per-dimension maximum (~32000 px). At very high grid resolutions combined with large fonts, the PNG export refuses upfront with a toast that names the two settings the user can lower (resolution / font size) instead of failing silently
 - **No animation**: GIF files extract a single frame only

@@ -73,7 +73,7 @@ The `vercel.json` file configures:
 
 1. **Security**: The smallest possible attack surface — every dependency is a supply-chain risk; this app has none at runtime.
 2. **Maintenance**: No production packages to track or update.
-3. **Bundle size**: The client bundle is ~36 kB (~9 kB gzipped) of hand-written code only.
+3. **Bundle size**: The client bundle is ~38 kB (~9.7 kB gzipped) of hand-written code only.
 4. **Reliability**: No upstream breakage can affect the deployed app.
 
 The earlier share backend used `@upstash/redis`, `@upstash/ratelimit`, `nanoid`, and `dompurify`; all four were removed when sharing moved client-side (May 2026).
@@ -89,8 +89,10 @@ The earlier share backend used `@upstash/redis`, `@upstash/ratelimit`, `nanoid`,
 ### Rendering
 - Grayscale mode uses `textContent` (no DOM parsing overhead)
 - Color modes generate inline-styled `<span>` elements per character
-- Auto-fit font sizing calculates once per render, not per frame
-- Canvas-based PNG export handles color data in a single pass
+- A 500k-cell budget gates the per-character color path; above it the renderer falls back to grayscale text with a one-shot toast (prevents ~150 MB DOM allocations at the canvas clamp ceiling)
+- HTML escaping on the per-pixel hot path is a pure string replace from `src/ascii-core.js`, not a `<div>.textContent` round-trip
+- Auto-fit font sizing calculates once per render and caps RAF retries at 10 to protect against permanently-hidden containers
+- Canvas-based PNG export handles color data in a single pass and refuses upfront if dimensions would exceed the browser canvas limit
 
 ### Load Time
 - Critical CSS inlined in `index.html` for instant loading state

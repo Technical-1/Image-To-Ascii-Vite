@@ -16,7 +16,7 @@ Upload any image and customize the output with adjustable resolution, brightness
 - **Resolution Scaling** - Percentage-based presets (10%-100%) or custom width/height up to full image dimensions
 - **Multiple Character Sets** - Standard, Detailed, Blocks, Binary, Dots, or fully custom characters (any Unicode, including emoji and other multi-byte glyphs)
 - **Quick Presets** - One-click styles: Classic, Colored, Blocks, Matrix, High Contrast, Inverted
-- **Accessible** - ARIA labels on controls, `role="status"` / `aria-live` toast notifications for screen-reader users
+- **Accessible** - ARIA labels on controls, keyboard-operable upload area (Tab + Enter/Space), `role="status"` / `aria-live` toast notifications for screen-reader users
 - **Shareable Links** - Generate a self-contained share URL — the artwork is encoded directly in the link (no server, no expiry, works offline)
 - **Multi-format Export** - Copy to clipboard, download as TXT, PNG (with color), or standalone HTML
 - **Fit to Container** - Auto-calculates font size to fill the viewport, or manual font/line-height control
