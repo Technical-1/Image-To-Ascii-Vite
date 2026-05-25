@@ -1,340 +1,269 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <style>
-    @import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&display=swap');
+<meta charset="UTF-8">
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
 
-    * { margin: 0; padding: 0; box-sizing: border-box; }
+  @font-face {
+    font-family: 'JetBrains Mono';
+    src: local('JetBrains Mono'), local('Menlo'), local('SF Mono');
+  }
 
-    .og-card {
-      width: 1200px;
-      height: 630px;
-      background: #0a0a0a;
-      position: relative;
-      overflow: hidden;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      font-family: 'JetBrains Mono', 'Courier New', monospace;
-    }
+  body {
+    background: #050505;
+    font-family: 'JetBrains Mono', 'SF Mono', 'Menlo', 'Courier New', monospace;
+  }
 
-    /* Scanline overlay */
-    .og-card::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: repeating-linear-gradient(
-        0deg,
-        transparent,
-        transparent 2px,
-        rgba(0, 255, 0, 0.015) 2px,
-        rgba(0, 255, 0, 0.015) 4px
-      );
-      pointer-events: none;
-      z-index: 10;
-    }
+  .og-card {
+    width: 1200px;
+    height: 630px;
+    background: #0a0a0a;
+    position: relative;
+    overflow: hidden;
+    color: #00ff00;
+  }
 
-    /* Subtle vignette */
-    .og-card::after {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: radial-gradient(ellipse at center, transparent 50%, rgba(0, 0, 0, 0.6) 100%);
-      pointer-events: none;
-      z-index: 5;
-    }
+  /* Soft green ambient glow */
+  .og-card::before {
+    content: '';
+    position: absolute;
+    top: -200px;
+    right: -200px;
+    width: 700px;
+    height: 700px;
+    background: radial-gradient(circle, rgba(0, 255, 0, 0.18) 0%, rgba(0, 255, 0, 0) 60%);
+    pointer-events: none;
+  }
 
-    /* Background ASCII texture */
-    .bg-ascii {
-      position: absolute;
-      inset: 0;
-      color: rgba(0, 255, 0, 0.04);
-      font-size: 11px;
-      line-height: 1.1;
-      white-space: pre;
-      overflow: hidden;
-      z-index: 0;
-      padding: 10px;
-    }
+  .og-card::after {
+    content: '';
+    position: absolute;
+    bottom: -200px;
+    left: -200px;
+    width: 600px;
+    height: 600px;
+    background: radial-gradient(circle, rgba(0, 204, 0, 0.12) 0%, rgba(0, 0, 0, 0) 60%);
+    pointer-events: none;
+  }
 
-    /* Green ambient glow */
-    .glow-top {
-      position: absolute;
-      top: -100px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 600px;
-      height: 300px;
-      background: radial-gradient(ellipse, rgba(0, 255, 0, 0.08) 0%, transparent 70%);
-      z-index: 1;
-    }
+  /* Subtle ASCII pattern in the corners */
+  .ascii-pattern {
+    position: absolute;
+    color: #00ff00;
+    opacity: 0.08;
+    font-size: 18px;
+    line-height: 1;
+    white-space: pre;
+    pointer-events: none;
+    letter-spacing: 2px;
+  }
 
-    .glow-bottom {
-      position: absolute;
-      bottom: -80px;
-      left: 50%;
-      transform: translateX(-50%);
-      width: 500px;
-      height: 200px;
-      background: radial-gradient(ellipse, rgba(0, 255, 0, 0.05) 0%, transparent 70%);
-      z-index: 1;
-    }
+  .ascii-pattern.top-left { top: 30px; left: 40px; }
+  .ascii-pattern.bottom-right { bottom: 40px; right: 40px; text-align: right; }
 
-    /* Terminal window */
-    .terminal {
-      position: relative;
-      z-index: 3;
-      width: 920px;
-      border: 1px solid #2a2a2a;
-      border-radius: 12px;
-      overflow: hidden;
-      background: #111;
-      box-shadow:
-        0 0 60px rgba(0, 255, 0, 0.06),
-        0 25px 60px rgba(0, 0, 0, 0.5);
-    }
+  /* Scanlines for retro CRT feel */
+  .scanlines {
+    position: absolute;
+    inset: 0;
+    background-image: repeating-linear-gradient(
+      0deg,
+      rgba(0, 255, 0, 0.025) 0px,
+      rgba(0, 255, 0, 0.025) 1px,
+      transparent 1px,
+      transparent 4px
+    );
+    pointer-events: none;
+  }
 
-    /* Title bar */
-    .terminal-bar {
-      display: flex;
-      align-items: center;
-      padding: 12px 16px;
-      background: #1a1a1a;
-      border-bottom: 1px solid #2a2a2a;
-      gap: 8px;
-    }
+  /* Terminal window chrome */
+  .terminal {
+    position: absolute;
+    inset: 60px 80px;
+    border: 1px solid rgba(0, 255, 0, 0.25);
+    border-radius: 14px;
+    background: rgba(0, 0, 0, 0.45);
+    backdrop-filter: blur(4px);
+    box-shadow:
+      inset 0 0 0 1px rgba(255, 255, 255, 0.02),
+      0 0 60px rgba(0, 255, 0, 0.12),
+      0 0 120px rgba(0, 255, 0, 0.06);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
 
-    .dot {
-      width: 12px;
-      height: 12px;
-      border-radius: 50%;
-    }
+  .titlebar {
+    height: 38px;
+    background: rgba(0, 0, 0, 0.6);
+    border-bottom: 1px solid rgba(0, 255, 0, 0.18);
+    display: flex;
+    align-items: center;
+    padding: 0 16px;
+    gap: 8px;
+  }
 
-    .dot-red { background: #ff5f57; }
-    .dot-yellow { background: #febc2e; }
-    .dot-green { background: #28c840; }
+  .dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+  }
+  .dot-r { background: #ff5f56; }
+  .dot-y { background: #ffbd2e; }
+  .dot-g { background: #27c93f; }
 
-    .terminal-title {
-      flex: 1;
-      text-align: center;
-      color: #666;
-      font-size: 13px;
-      margin-right: 44px;
-    }
+  .titlebar-title {
+    flex: 1;
+    text-align: center;
+    color: #666;
+    font-size: 13px;
+    letter-spacing: 0.5px;
+  }
 
-    /* Terminal content */
-    .terminal-body {
-      padding: 28px 32px;
-    }
+  .body-area {
+    flex: 1;
+    padding: 36px 48px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
 
-    /* ASCII art showcase in terminal */
-    .ascii-sample {
-      color: #00ff00;
-      font-size: 7.5px;
-      line-height: 0.72;
-      white-space: pre;
-      text-align: center;
-      margin-bottom: 24px;
-      text-shadow: 0 0 8px rgba(0, 255, 0, 0.3);
-    }
+  .prompt-line {
+    color: #888;
+    font-size: 18px;
+    letter-spacing: 0.5px;
+  }
+  .prompt-line .prompt { color: #00cc00; margin-right: 10px; }
+  .prompt-line .cursor {
+    display: inline-block;
+    width: 9px;
+    height: 18px;
+    background: #00ff00;
+    margin-left: 4px;
+    vertical-align: text-bottom;
+    box-shadow: 0 0 8px rgba(0, 255, 0, 0.7);
+  }
 
-    /* Divider */
-    .divider {
-      color: #2a2a2a;
-      font-size: 12px;
-      text-align: center;
-      margin-bottom: 20px;
-      letter-spacing: 2px;
-    }
+  .headline {
+    font-size: 92px;
+    font-weight: 800;
+    letter-spacing: -1px;
+    line-height: 1;
+    background: linear-gradient(135deg, #00ff00 0%, #00cc00 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+    text-shadow: 0 0 60px rgba(0, 255, 0, 0.3);
+    filter: drop-shadow(0 0 20px rgba(0, 255, 0, 0.35));
+  }
+  .arrow {
+    color: #00cc00;
+    font-weight: 400;
+    -webkit-text-fill-color: #00cc00;
+  }
 
-    /* Info line */
-    .info-line {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      margin-bottom: 6px;
-      font-size: 13px;
-    }
+  .subtitle {
+    color: #ccc;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-size: 26px;
+    font-weight: 400;
+    line-height: 1.3;
+    margin-top: 4px;
+  }
+  .subtitle .em {
+    color: #00ff00;
+    font-weight: 500;
+  }
 
-    .prompt {
-      color: #00aa00;
-    }
+  .pills {
+    display: flex;
+    gap: 10px;
+    margin-top: 10px;
+    flex-wrap: wrap;
+  }
+  .pill {
+    padding: 7px 16px;
+    border: 1px solid rgba(0, 255, 0, 0.35);
+    border-radius: 999px;
+    color: #00ff00;
+    font-size: 15px;
+    background: rgba(0, 255, 0, 0.04);
+  }
 
-    .cmd {
-      color: #00ff00;
-    }
+  .footer-row {
+    margin-top: auto;
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 24px;
+  }
 
-    .flag {
-      color: #666;
-    }
+  .ascii-preview {
+    color: #00ff00;
+    font-size: 13px;
+    line-height: 1;
+    letter-spacing: 1px;
+    white-space: pre;
+    opacity: 0.85;
+    filter: drop-shadow(0 0 4px rgba(0, 255, 0, 0.5));
+  }
 
-    .value {
-      color: #999;
-    }
-
-    /* Bottom area outside terminal */
-    .bottom-info {
-      position: relative;
-      z-index: 3;
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      width: 920px;
-      margin-top: 20px;
-      padding: 0 4px;
-    }
-
-    .app-title {
-      font-size: 26px;
-      font-weight: 700;
-      color: #00ff00;
-      text-shadow: 0 0 20px rgba(0, 255, 0, 0.3);
-      letter-spacing: -0.5px;
-    }
-
-    .app-subtitle {
-      font-size: 14px;
-      color: #666;
-      letter-spacing: 0.5px;
-    }
-
-    .tags {
-      display: flex;
-      gap: 8px;
-    }
-
-    .tag {
-      padding: 5px 14px;
-      background: rgba(0, 255, 0, 0.08);
-      border: 1px solid rgba(0, 255, 0, 0.2);
-      border-radius: 20px;
-      color: #00cc00;
-      font-size: 12px;
-    }
-  </style>
+  .domain {
+    color: #00cc00;
+    font-size: 16px;
+    letter-spacing: 0.5px;
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  }
+  .domain .at { color: #555; margin-right: 6px; }
+</style>
 </head>
 <body>
   <div class="og-card">
-    <!-- Background ASCII fill -->
-    <div class="bg-ascii">@%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:.
-.:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@
-@%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:.
-.:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@
-@%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:.
-.:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@
-@%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:.
-.:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@
-@%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:.
-.:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@
-@%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:.
-.:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@
-@%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:.
-.:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@
-@%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:.
-.:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@
-@%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:.
-.:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@
-@%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:.
-.:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@
-@%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:.
-.:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@
-@%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:.
-.:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@
-@%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:.
-.:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@
-@%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:. @%#*+=-:.
-.:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@ .:-=+*#%@</div>
+    <div class="scanlines"></div>
 
-    <div class="glow-top"></div>
-    <div class="glow-bottom"></div>
+    <div class="ascii-pattern top-left">.:-=+*#%@.:-=+*#%@.:-=+*#%@.:-=+*#%@
+@%#*+=-:.@%#*+=-:.@%#*+=-:.@%#*+=-:.
+.:-=+*#%@.:-=+*#%@.:-=+*#%@.:-=+*#%@</div>
 
-    <!-- Terminal window -->
+    <div class="ascii-pattern bottom-right">.:-=+*#%@.:-=+*#%@.:-=+*#%@.:-=+*#%@
+@%#*+=-:.@%#*+=-:.@%#*+=-:.@%#*+=-:.
+.:-=+*#%@.:-=+*#%@.:-=+*#%@.:-=+*#%@</div>
+
     <div class="terminal">
-      <div class="terminal-bar">
-        <div class="dot dot-red"></div>
-        <div class="dot dot-yellow"></div>
-        <div class="dot dot-green"></div>
-        <div class="terminal-title">image-to-ascii ~ output</div>
+      <div class="titlebar">
+        <span class="dot dot-r"></span>
+        <span class="dot dot-y"></span>
+        <span class="dot dot-g"></span>
+        <span class="titlebar-title">image-to-ascii — main</span>
       </div>
-      <div class="terminal-body">
-        <!-- ASCII art face/portrait sample -->
-        <div class="ascii-sample">┌──────────────────────────────────────────────────────────────────────────────────────────────────────────┐
-│                                                                                                          │
-│      ......:::::::=======++++++*****######%%%%%@@@@@@@@@@%%%%%######*****++++++======:::::::......         │
-│    ...:::===+++***###%%%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%%%###***+++===:::...                 │
-│   .::==++**##%%@@@@@@@@@@##***+++===:::......   ......:::===+++***##@@@@@@@@@@%%##**++==::.                │
-│  .:=+*#%@@@@@@#*+=:..                                               ..:=+*#@@@@@@%#*+=:.                 │
-│  :=+#%@@@%*=:.                                                             .:=*%@@@%#+:                  │
-│  =+#@@%+:.                    .::==++**##%%@@%%##**++==::.                     .:+%@@#+                   │
-│  +#@%=.                  .:=+*#%@@@@@@@@@@@@@@@@@@@@@@%#*+=:.                    .=%@#+                   │
-│  #@#:               .:=+#%@@@@@@@%##***++++++***##%@@@@@@@%#+=:.                  :#@#                   │
-│  @%:             .:+#%@@@@%#*+=:..                 ..:=+*#%@@@@%#=:.               :%@                   │
-│  @=           .=+#@@@%*+=:.       .:==++**++==:.        .:=+*%@@@#+:.              .=@                   │
-│  #.         :+#@@%*=.          .=+#%@@@@@@@@@@%#+=.          .=*%@@#+.               #                   │
-│  :        .+%@%+:.          .=+#@@@@%##****##%@@@@#+=.         .:+%@%+.              :                   │
-│          :*@%=.           .=*%@@%*+=:........:=+*%@@%*=.          .=%@*.                                  │
-│         .#@#.           .:+%@%+=.              .=+%@%+:.           .#@#                                  │
-│         =@#            .+%@#=.     .:::::::::.    .=#@%+.           .#@=                                 │
-│        .%@:           .+@@+.     .:=+*####*+=:.     .+@@+.           :@%                                │
-│        :@+           .+@%:      .=+#%@@@@@@%#+=.      :%@+.           +@:                               │
-│        +@.           =@%.      .=*%@@@@@@@@@@%*=.      .%@=           .@+                               │
-│        #%           .#@:       :+#@@@@@@@@@@@@#+:       :@#.           %#                               │
-│        %#           :@+       .=*%@@@@@@@@@@@@%*=.       +@:           #%                               │
-│        %#           :@+       .=*%@@@@@@@@@@@@%*=.       +@:           #%                               │
-│        #%           .#@:       :+#@@@@@@@@@@@@#+:       :@#.           %#                               │
-│        +@.           =@%.      .=*%@@@@@@@@@@%*=.      .%@=           .@+                               │
-│        :@+           .+@%:      .=+#%@@@@@@%#+=.      :%@+.           +@:                               │
-│        .%@:           .+@@+.     .:=+*####*+=:.     .+@@+.           :@%                                │
-│         =@#            .+%@#=.     .:::::::::.    .=#@%+.           .#@=                                 │
-│         .#@#.           .:+%@%+=.              .=+%@%+:.           .#@#                                  │
-│          :*@%=.           .=*%@@%*+=:........:=+*%@@%*=.          .=%@*.                                  │
-│          .+%@%+:.          .=+#@@@@%##****##%@@@@#+=.         .:+%@%+.                                   │
-│  :        .+%@%+:.          .=+#%@@@@@@@@@@%#+=.          .=*%@@#+.               :                      │
-│  #.         :+#@@%*=.          .=+#%@@@@@@@@@@%#+=.          .=*%@@#+.             #                      │
-│  @=           .=+#@@@%*+=:.       .:==++**++==:.        .:=+*%@@@#+:.            .=@                     │
-│  @%:             .:+#%@@@@%#*+=:..                 ..:=+*#%@@@@%#=:.             :%@                     │
-│  #@#:               .:=+#%@@@@@@@%##***++++++***##%@@@@@@@%#+=:.                :#@#                     │
-│  +#@%=.                  .:=+*#%@@@@@@@@@@@@@@@@@@@@@@%#*+=:.                  .=%@#+                    │
-│  =+#@@%+:.                    .::==++**##%%@@%%##**++==::.                   .:+%@@#+                    │
-│  :=+#%@@@%*=:.                                                           .:=*%@@@%#+:                   │
-│  .:=+*#%@@@@@@#*+=:..                                             ..:=+*#@@@@@@%#*+=:.                  │
-│   .::==++**##%%@@@@@@@@@@##***+++===:::......   ......:::===+++***##@@@@@@@@@@%%##**++==::.               │
-│    ...:::===+++***###%%%@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@%%%###***+++===:::...                │
-│      ......:::::::=======++++++*****######%%%%%@@@@@@@@@@%%%%%######*****++++++======:::::::......         │
-│                                                                                                          │
-└──────────────────────────────────────────────────────────────────────────────────────────────────────────┘</div>
 
-        <div class="divider">────────────────────────────────────────────────────────────────────────</div>
-
-        <div class="info-line">
-          <span class="prompt">$</span>
-          <span class="cmd">convert</span>
-          <span class="flag">--mode</span>
-          <span class="value">rgb</span>
-          <span class="flag">--chars</span>
-          <span class="value">" .:-=+*#%@"</span>
-          <span class="flag">--edge-detect</span>
-          <span class="flag">--share</span>
+      <div class="body-area">
+        <div class="prompt-line">
+          <span class="prompt">$</span>image-to-ascii --convert photo.jpg<span class="cursor"></span>
         </div>
-        <div class="info-line">
-          <span class="prompt">&gt;</span>
-          <span class="value" style="color: #00aa00;">Processing... ████████████████████████████████ 100%</span>
-        </div>
-      </div>
-    </div>
 
-    <!-- Bottom info -->
-    <div class="bottom-info">
-      <div>
-        <div class="app-title">Image to ASCII</div>
-        <div class="app-subtitle">image-to-ascii-nine.vercel.app</div>
-      </div>
-      <div class="tags">
-        <span class="tag">Color Modes</span>
-        <span class="tag">Edge Detection</span>
-        <span class="tag">Shareable</span>
+        <div class="headline">IMAGE<span class="arrow"> → </span>ASCII</div>
+
+        <div class="subtitle">
+          Real-time, <span class="em">browser-based</span> image → ASCII art converter.
+        </div>
+
+        <div class="pills">
+          <span class="pill">vanilla js</span>
+          <span class="pill">vite</span>
+          <span class="pill">vercel</span>
+          <span class="pill">6 charsets</span>
+          <span class="pill">4 color modes</span>
+          <span class="pill">shareable</span>
+        </div>
+
+        <div class="footer-row">
+          <div class="ascii-preview"> .:-=+*#%@
+.:-=+*#%@.
+:-=+*#%@.:
+-=+*#%@.:-</div>
+          <div class="domain"><span class="at">→</span>image-to-ascii-nine.vercel.app</div>
+        </div>
       </div>
     </div>
   </div>
