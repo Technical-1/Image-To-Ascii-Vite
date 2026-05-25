@@ -123,3 +123,14 @@ export function pixelsToText(pixels, width, height, { chars, brightness, contras
     }
     return text;
 }
+
+/**
+ * Escape the five HTML-sensitive characters. Pure string replace — used on
+ * the per-pixel hot path in pixelsToAscii, so building a <div> per call
+ * (the previous implementation) would burn millions of DOM allocations at
+ * the max grid size.
+ */
+const HTML_ESCAPES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+export function escapeHtml(value) {
+    return String(value).replace(/[&<>"']/g, (ch) => HTML_ESCAPES[ch]);
+}

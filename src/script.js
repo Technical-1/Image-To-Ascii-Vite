@@ -8,6 +8,7 @@ import {
     charForBrightness,
     ansiColor,
     applyEdgeDetection,
+    escapeHtml,
 } from './ascii-core.js';
 import { DEFAULT_SETTINGS, MAX_DIMENSION, clampDimension, sanitizeSettings } from './settings-schema.js';
 import { encodeShare, decodeShare, validateShare } from './share-codec.js';
@@ -940,7 +941,7 @@ class ImageAsciiConverter {
                 switch (colorMode) {
                     case 'rgb': {
                         const rgb = `rgb(${Math.round(r)},${Math.round(g)},${Math.round(b)})`;
-                        htmlParts[x] = `<span style="color:${rgb}">${this.escapeHtml(char)}</span>`;
+                        htmlParts[x] = `<span style="color:${rgb}">${escapeHtml(char)}</span>`;
                         rowColors[x] = { color: rgb };
                         break;
                     }
@@ -948,7 +949,7 @@ class ImageAsciiConverter {
                         const frgb = `rgb(${Math.round(r)},${Math.round(g)},${Math.round(b)})`;
                         const bgBrightness = brightness * 0.3;
                         const bg = `rgba(${Math.round(r)},${Math.round(g)},${Math.round(b)},${bgBrightness / 255})`;
-                        htmlParts[x] = `<span style="color:${frgb};background:${bg}">${this.escapeHtml(char)}</span>`;
+                        htmlParts[x] = `<span style="color:${frgb};background:${bg}">${escapeHtml(char)}</span>`;
                         rowColors[x] = { color: frgb, background: bg };
                         break;
                     }
@@ -957,7 +958,7 @@ class ImageAsciiConverter {
                         rowColors[x] = { color: `rgb(${Math.round(r)},${Math.round(g)},${Math.round(b)})` };
                         break;
                     default: // grayscale
-                        htmlParts[x] = this.escapeHtml(char);
+                        htmlParts[x] = escapeHtml(char);
                         rowColors[x] = null;
                 }
             }
@@ -977,13 +978,7 @@ class ImageAsciiConverter {
 
     toAnsiColor(r, g, b, char) {
         const { r: ansiR, g: ansiG, b: ansiB } = ansiColor(r, g, b);
-        return `<span style="color:rgb(${ansiR},${ansiG},${ansiB})">${this.escapeHtml(char)}</span>`;
-    }
-
-    escapeHtml(text) {
-        const div = document.createElement('div');
-        div.textContent = text;
-        return div.innerHTML;
+        return `<span style="color:rgb(${ansiR},${ansiG},${ansiB})">${escapeHtml(char)}</span>`;
     }
 
     renderAscii(asciiContent) {
@@ -1247,7 +1242,7 @@ class ImageAsciiConverter {
         if (!this.currentAscii) return;
 
         const { fontSize, lineHeight } = this.settings;
-        const imageName = this.escapeHtml(this.currentImage?.name || 'ASCII Art');
+        const imageName = escapeHtml(this.currentImage?.name || 'ASCII Art');
 
         const html = `<!DOCTYPE html>
 <html lang="en">
@@ -1281,7 +1276,7 @@ class ImageAsciiConverter {
     </style>
 </head>
 <body>
-    <pre class="ascii-container">${this.currentAscii.html || this.escapeHtml(this.currentAscii.text)}</pre>
+    <pre class="ascii-container">${this.currentAscii.html || escapeHtml(this.currentAscii.text)}</pre>
 </body>
 </html>`;
 

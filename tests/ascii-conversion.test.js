@@ -9,6 +9,7 @@ import {
     ansiColor,
     applyEdgeDetection,
     pixelsToText,
+    escapeHtml,
 } from '../src/ascii-core.js';
 
 describe('adjustBrightnessContrast', () => {
@@ -164,6 +165,31 @@ describe('pixelsToText', () => {
         });
         expect(text.split('\n')).toHaveLength(3); // 2 rows + trailing ''
         expect(text.endsWith('\n')).toBe(true);
+    });
+});
+
+describe('escapeHtml', () => {
+    it('escapes the five HTML-sensitive characters', () => {
+        expect(escapeHtml('<')).toBe('&lt;');
+        expect(escapeHtml('>')).toBe('&gt;');
+        expect(escapeHtml('&')).toBe('&amp;');
+        expect(escapeHtml('"')).toBe('&quot;');
+        expect(escapeHtml("'")).toBe('&#39;');
+    });
+    it('escapes all five together in one pass', () => {
+        expect(escapeHtml(`<a href="x" title='y'>&</a>`))
+            .toBe('&lt;a href=&quot;x&quot; title=&#39;y&#39;&gt;&amp;&lt;/a&gt;');
+    });
+    it('preserves unicode (no escaping needed)', () => {
+        expect(escapeHtml('░▒▓█ 日本語 🎨')).toBe('░▒▓█ 日本語 🎨');
+    });
+    it('returns empty string for empty input', () => {
+        expect(escapeHtml('')).toBe('');
+    });
+    it('coerces non-string input to string', () => {
+        expect(escapeHtml(0)).toBe('0');
+        expect(escapeHtml(null)).toBe('null');
+        expect(escapeHtml(undefined)).toBe('undefined');
     });
 });
 
