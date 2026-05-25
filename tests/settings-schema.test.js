@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { DEFAULT_SETTINGS, sanitizeSettings } from '../src/settings-schema.js';
 import { MIN_DIMENSION, MAX_DIMENSION, clampDimension } from '../src/settings-schema.js';
+import { MAX_COLOR_CELLS, isColorRenderTractable } from '../src/settings-schema.js';
 
 describe('sanitizeSettings', () => {
   it('returns defaults for an empty object', () => {
@@ -79,5 +80,28 @@ describe('clampDimension', () => {
     expect(clampDimension(undefined)).toBe(MIN_DIMENSION);
     expect(clampDimension(null)).toBe(MIN_DIMENSION);
     expect(clampDimension('nope')).toBe(MIN_DIMENSION);
+  });
+});
+
+describe('isColorRenderTractable', () => {
+  it('always returns true for grayscale regardless of size', () => {
+    expect(isColorRenderTractable(2000, 2000, 'grayscale')).toBe(true);
+    expect(isColorRenderTractable(10, 10, 'grayscale')).toBe(true);
+  });
+  it('returns true for color when cells <= MAX_COLOR_CELLS', () => {
+    expect(isColorRenderTractable(100, 100, 'rgb')).toBe(true);
+    expect(isColorRenderTractable(500, 500, 'ansi')).toBe(true);
+  });
+  it('returns false for color when cells > MAX_COLOR_CELLS', () => {
+    expect(isColorRenderTractable(2000, 2000, 'rgb')).toBe(false);
+    expect(isColorRenderTractable(1000, 1000, 'full-rgb')).toBe(false);
+  });
+  it('handles the exact boundary', () => {
+    const w = 1000, h = MAX_COLOR_CELLS / 1000;
+    expect(isColorRenderTractable(w, h, 'rgb')).toBe(true);
+    expect(isColorRenderTractable(w, h + 1, 'rgb')).toBe(false);
+  });
+  it('exposes the constant', () => {
+    expect(MAX_COLOR_CELLS).toBeGreaterThan(0);
   });
 });

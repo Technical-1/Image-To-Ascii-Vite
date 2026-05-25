@@ -10,7 +10,7 @@ import {
     applyEdgeDetection,
     escapeHtml,
 } from './ascii-core.js';
-import { DEFAULT_SETTINGS, MAX_DIMENSION, clampDimension, sanitizeSettings } from './settings-schema.js';
+import { DEFAULT_SETTINGS, MAX_DIMENSION, clampDimension, sanitizeSettings, isColorRenderTractable } from './settings-schema.js';
 import { encodeShare, decodeShare, validateShare } from './share-codec.js';
 
 /**
@@ -104,7 +104,11 @@ class ImageAsciiConverter {
         // share so two clicks within 2s can't revert the button text at
         // the wrong moment relative to the user's latest action.
         this._shareRestoreTimer = null;
-        
+
+        // One-shot guard so the "color too heavy" toast doesn't fire on every
+        // debounced re-render while the user is dragging a slider.
+        this._colorBudgetWarned = false;
+
         // Settings (with localStorage persistence)
         this.settings = this.loadSettings();
 
@@ -903,6 +907,13 @@ class ImageAsciiConverter {
         const { width, height } = imageData; // source of truth: actual decoded extent
         const { colorMode, inverted, charsetType } = this.settings;
         const pixels = imageData.data;
+
+        // Above the cell budget we still produce text but skip the per-pixel
+        // <span> HTML build — that string would be 150+ MB at 2000x2000 in a
+        // color mode and OOM the tab. renderAscii detects and falls back to
+        // textContent. See MAX_COLOR_CELLS in settings-schema.
+        const buildColor = isColorRenderTractable(width, height, colorMode);
+        const effectiveColorMode = buildColor ? colorMode : 'grayscale';
         
         const chars = charsetType === 'custom'
             ? (this.customChars || charsets.standard)
@@ -938,7 +949,7 @@ class ImageAsciiConverter {
 
                 textChars[x] = char;
 
-                switch (colorMode) {
+                switch (effectiveColorMode) {
                     case 'rgb': {
                         const rgb = `rgb(${Math.round(r)},${Math.round(g)},${Math.round(b)})`;
                         htmlParts[x] = `<span style="color:${rgb}">${escapeHtml(char)}</span>`;
@@ -986,14 +997,29 @@ class ImageAsciiConverter {
         
         const output = document.getElementById('ascii-output');
         
-        if (this.settings.colorMode !== 'grayscale') {
+        const wantedColor = this.settings.colorMode !== 'grayscale';
+        const tractable = isColorRenderTractable(
+            this.settings.width,
+            this.settings.height,
+            this.settings.colorMode,
+        );
+
+        if (wantedColor && tractable) {
             // Safe: asciiContent.html is built in pixelsToAscii from numeric
             // pixel values + escapeHtml(char) only — never from link/network strings.
             output.innerHTML = asciiContent.html;
         } else {
             output.textContent = asciiContent.text;
+            if (wantedColor && !tractable && !this._colorBudgetWarned) {
+                this._colorBudgetWarned = true;
+                this.showToast(
+                    'Resolution too high for color rendering — showing grayscale. Lower resolution to use color.',
+                    'error',
+                );
+                setTimeout(() => { this._colorBudgetWarned = false; }, 5000);
+            }
         }
-        
+
         // Auto-calculate font size if fitToContainer is enabled
         if (this.settings.fitToContainer) {
             this.fitOutputToContainer();

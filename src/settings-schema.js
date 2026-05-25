@@ -61,3 +61,15 @@ export function sanitizeSettings(raw, defaults = DEFAULT_SETTINGS) {
     customCharset: String(r.customCharset ?? defaults.customCharset).slice(0, 200),
   };
 }
+
+// Hard cap on cells (width * height) for which we build per-pixel HTML
+// in a color mode. Above this, the DOM render step would allocate
+// hundreds of MB of nodes and freeze mobile Safari. The grid is
+// otherwise allowed up to MAX_DIMENSION^2 = 4,000,000 cells in
+// grayscale (where rendering is one textContent write).
+export const MAX_COLOR_CELLS = 500_000;
+
+export function isColorRenderTractable(width, height, colorMode) {
+  if (colorMode === 'grayscale') return true;
+  return (width * height) <= MAX_COLOR_CELLS;
+}
