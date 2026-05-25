@@ -208,7 +208,7 @@ class ImageAsciiConverter {
                     <div class="sidebar-content">
                         <!-- Upload -->
                         <div class="panel">
-                            <div class="upload-area" id="upload-area">
+                            <div class="upload-area" id="upload-area" role="button" tabindex="0" aria-label="Upload image. Press Enter or Space to choose a file.">
                                 <span class="upload-icon">📁</span>
                                 <span>Drop image or click</span>
                                 <input type="file" id="image-input" accept="image/*" hidden>
@@ -462,6 +462,12 @@ class ImageAsciiConverter {
         const imageInput = document.getElementById('image-input');
 
         uploadArea.addEventListener('click', () => imageInput.click());
+        uploadArea.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                imageInput.click();
+            }
+        });
         imageInput.addEventListener('change', (e) => this.handleFileSelect(e));
 
         // Drag and drop
