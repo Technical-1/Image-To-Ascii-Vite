@@ -111,10 +111,6 @@ Image-To-Ascii-Vite/
 │   ├── ascii-conversion.test.js  # Vitest unit tests for ascii-core algorithms
 │   ├── settings-schema.test.js   # Sanitize/clamp contract tests
 │   └── share-codec.test.js       # Encode/decode round-trip + hostile-input tests
-└── docs/
-    ├── STATUS-TRACKER.md   # Authoritative status of all findings (source of truth)
-    ├── plans/              # Production hardening plan + design notes
-    └── superpowers/        # Spec / design records
 ```
 
 ## License

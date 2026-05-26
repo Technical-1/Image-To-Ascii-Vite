@@ -31,11 +31,31 @@ I refactored the original module-scoped functions into an `ImageAsciiConverter` 
 ### Client-Side URL Share System
 The share feature encodes the downscaled source image plus settings into the URL fragment using a small pure codec (`src/share-codec.js`): base64url of a JSON `{ v, settings, img: data:image/png;base64,… }`. Because it's a fragment, it never reaches any server. Opening the link puts the same SPA into a read-only view mode that re-runs the shared deterministic pipeline (`src/ascii-core.js`) to regenerate identical output. The codec hardens the untrusted-input boundary with a raster-only data-URI allowlist (no SVG), size and structural guards, and an injected `sanitizeSettings` clamp.
 
-## Development Story
+## Engineering Decisions
 
-- **Hardest Part**: Getting the color modes to work correctly across the conversion pipeline, export functions, and shared viewer. Each output format (clipboard text, PNG canvas, HTML download, shared view) needs different handling of the color data.
-- **Lessons Learned**: The percentage-based resolution system works much better than fixed width/height sliders. Users intuitively understand "50% of original" better than "set width to 200 characters."
-- **Future Plans**: Animated GIF support (multi-frame), WebWorker-based processing for very large images, and a gallery of community-shared creations.
+### Client-side fragment sharing instead of a server share API
+- **Constraint**: Sharing needs to work without me operating a backend, paying for storage, or expiring links.
+- **Options**: A serverless route writing to Upstash Redis with short IDs and a TTL; an object-store presigned upload; or encoding the payload directly into the URL.
+- **Choice**: Encode the downscaled image plus settings into the URL fragment (`#s=…`) using a small base64url codec in `src/share-codec.js`.
+- **Why**: Fragments never reach a server, so there is nothing to host, rate-limit, or expire. The 2 MB encode-time cap keeps links pasteable in browser address bars and chat apps; anything bigger fails with a toast pointing the user at the resolution slider. I previously had the Upstash flow working and removed it once the fragment path proved viable.
+
+### Color-cell budget instead of an unbounded color render
+- **Constraint**: At max canvas dimensions (2000×2000 = 4M cells) the color modes would allocate roughly 4M `<span>` nodes — about 150 MB of DOM — and OOM mobile Safari.
+- **Options**: Cap the resolution slider, virtualize the output, or gate color rendering behind a tractability check.
+- **Choice**: Keep the grid uncapped for grayscale (one `textContent` write) and gate color rendering on a 500k-cell budget (`MAX_COLOR_CELLS` in `src/settings-schema.js`). Above the budget, both `pixelsToAscii` and `renderAscii` fall back to grayscale text and show a one-shot toast.
+- **Why**: Grayscale stays fast all the way to the canvas clamp, color stays usable up to the budget, and the failure mode is a readable image plus an explanation instead of a crashed tab.
+
+### Pure conversion core separated from the UI driver
+- **Constraint**: The conversion pipeline runs in create mode, in the share-view mode, and in unit tests — three call sites that have to agree exactly.
+- **Options**: Duplicate the math, expose internals of the converter class, or extract the math into a DOM-free module.
+- **Choice**: Split `src/ascii-core.js` out of `src/script.js`. The core module owns brightness/contrast, weighted luminance, character mapping, ANSI quantization, Sobel edges, and a pure HTML escape. The class in `script.js` is the UI driver around it.
+- **Why**: Vitest imports the same code the production hot path runs, so a regression in luminance weights or ramp mapping fails a test instead of shipping. It also keeps the per-pixel inner loop free of DOM allocations — the HTML escape is a pure string replace, not a `<div>.textContent` round-trip.
+
+### Vanilla JS with a single class instead of a framework
+- **Constraint**: One screen, one piece of state (current image + settings), and a goal of a small bundle.
+- **Options**: React, Vue/Svelte, or no framework.
+- **Choice**: A single `ImageAsciiConverter` class with localStorage persistence and DOM-built controls.
+- **Why**: A framework would add bundle weight and a render boundary without buying anything for a single-view app. The class keeps state in one place; localStorage gives session persistence without a router or store; the result is a ~38 kB / ~9.7 kB-gzip hand-written bundle.
 
 ## Frequently Asked Questions
 
