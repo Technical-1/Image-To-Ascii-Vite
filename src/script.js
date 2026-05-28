@@ -6,9 +6,11 @@ import {
     adjustBrightnessContrast,
     weightedLuminance,
     charForBrightness,
-    ansiColor,
     applyEdgeDetection,
     escapeHtml,
+    prepareGlyphs,
+    colorCellStyle,
+    lineToCells,
 } from './ascii-core.js';
 import { DEFAULT_SETTINGS, MIN_DIMENSION, MAX_DIMENSION, clampDimension, sanitizeSettings, isColorRenderTractable } from './settings-schema.js';
 import { encodeShare, decodeShare, validateShare } from './share-codec.js';
@@ -90,11 +92,23 @@ class ImageAsciiConverter {
         this.currentShareImage = null;
         this.debounceTimer = null;
 
+        // Decoded-image cache (see _getDecodedImage), keyed by the data URL so
+        // re-decoding only happens when the actual source image changes.
+        this._decodedImage = null;
+        this._decodedImageSrc = null;
+
         // Monotonic upload token. A new file upload bumps this; any in-flight
         // FileReader / Image onload from a previous upload checks the token
         // before mutating instance state, so rapid-fire uploads can't race
         // (older callback lands after newer one and clobbers the active image).
         this._uploadToken = 0;
+
+        // Monotonic conversion token. convertToAscii is async (it awaits an
+        // image decode), so a newer debounced conversion can start before an
+        // older one finishes. Each run checks this token after the await and
+        // bails if superseded, so a slow older decode can't overwrite the
+        // newer settings' output / currentAscii.
+        this._convertToken = 0;
 
         // Pending hide-timer for the shared toast element. Cleared on each
         // new toast so a stale timer can't hide the next message early.
@@ -691,6 +705,17 @@ class ImageAsciiConverter {
         document.getElementById('height-slider').value = this.settings.height;
         document.getElementById('height-value').textContent = this.settings.height;
 
+        // The resolution dropdown's percentage options are relative to a loaded
+        // image, which doesn't exist yet on restore. If the persisted dims
+        // differ from the defaults they're literal custom values, so reflect
+        // that instead of leaving the dropdown stuck on its markup default
+        // ("50% Scale") while the sliders show unrelated numbers.
+        if (this.settings.width !== DEFAULT_SETTINGS.width ||
+            this.settings.height !== DEFAULT_SETTINGS.height) {
+            document.getElementById('resolution-select').value = 'custom';
+            document.getElementById('custom-resolution').classList.remove('hidden');
+        }
+
         document.getElementById('charset-select').value = this.settings.charsetType;
         if (this.settings.charsetType === 'custom') {
             document.getElementById('custom-charset-group').classList.remove('hidden');
@@ -807,15 +832,27 @@ class ImageAsciiConverter {
                     this.saveSettings();
                 }
                 
+                // Toast only after a confirmed decode — a corrupt file that
+                // passes the MIME check never reaches here (onerror fires).
+                this.showToast('Image loaded successfully!', 'success');
                 this.convertToAscii();
             };
-            
+
+            previewImg.onerror = () => {
+                if (this._uploadToken !== uploadToken) return; // newer upload superseded this one
+                previewContainer.classList.add('hidden');
+                this.showToast('Could not load image. The file may be corrupt or an unsupported format.', 'error');
+            };
+
             previewImg.src = e.target.result;
             previewContainer.classList.remove('hidden');
-            
-            this.showToast('Image loaded successfully!', 'success');
         };
-        
+
+        reader.onerror = () => {
+            if (this._uploadToken !== uploadToken) return; // newer upload superseded this one
+            this.showToast('Could not read the file. Please try again.', 'error');
+        };
+
     reader.readAsDataURL(file);
 }
 
@@ -827,8 +864,14 @@ class ImageAsciiConverter {
     async convertToAscii() {
         if (!this.currentImageDataUrl) return;
 
+        const token = ++this._convertToken;
+
         try {
             const imageData = await this.processImage();
+            // A newer conversion superseded this one while the image was
+            // decoding — drop this stale result instead of rendering it.
+            if (token !== this._convertToken) return;
+
             // Snapshot the downscaled canvas (raw resized pixels, pre-effects)
             // for backend-free URL sharing.
             this.currentShareImage = this.canvas.toDataURL('image/png');
@@ -844,6 +887,8 @@ class ImageAsciiConverter {
                     if (el) el.disabled = false;
                 });
         } catch (error) {
+            // Ignore errors from a conversion that's already been superseded.
+            if (token !== this._convertToken) return;
             console.error('Conversion error:', error);
             const output = document.getElementById('ascii-output');
             const p = document.createElement('p');
@@ -863,36 +908,51 @@ class ImageAsciiConverter {
         }
     }
 
-    processImage() {
-    return new Promise((resolve, reject) => {
+    // Decode the source image once and cache it, keyed by the data URL. Every
+    // slider/adjustment debounce re-runs processImage; without this cache each
+    // run re-decoded the full-resolution source (up to the 50MB upload limit)
+    // before drawing the small ASCII canvas.
+    _getDecodedImage() {
+        if (this._decodedImage && this._decodedImageSrc === this.currentImageDataUrl) {
+            return Promise.resolve(this._decodedImage);
+        }
+        return new Promise((resolve, reject) => {
             const img = new Image();
-            
+            const src = this.currentImageDataUrl;
             img.onload = () => {
-                // Convert-time safety net: regardless of how settings got here
-                // (slider, resolution-%, localStorage, share decode), the canvas
-                // can never exceed MAX_DIMENSION. Tracker C2.
-                const width = clampDimension(this.settings.width);
-                const height = clampDimension(this.settings.height);
-
-                this.canvas.width = width;
-                this.canvas.height = height;
-                
-                // Draw scaled image
-                this.ctx.drawImage(img, 0, 0, img.width, img.height, 0, 0, width, height);
-                
-                // Get image data
-                const imageData = this.ctx.getImageData(0, 0, width, height);
-                
-                // Apply edge detection if enabled
-                if (this.settings.edgeDetection) {
-                    this.applyEdgeDetection(imageData);
-                }
-                
-                resolve(imageData);
+                this._decodedImage = img;
+                this._decodedImageSrc = src;
+                resolve(img);
             };
-            
             img.onerror = () => reject(new Error('Failed to load image'));
-            img.src = this.currentImageDataUrl;
+            img.src = src;
+        });
+    }
+
+    processImage() {
+        return this._getDecodedImage().then((img) => {
+            // Convert-time safety net: regardless of how settings got here
+            // (slider, resolution-%, localStorage, share decode), the canvas
+            // can never exceed MAX_DIMENSION. Tracker C2.
+            const width = clampDimension(this.settings.width);
+            const height = clampDimension(this.settings.height);
+
+            this.canvas.width = width;
+            this.canvas.height = height;
+
+            // Draw scaled image. This draw + getImageData run synchronously
+            // (no await between them), so concurrent conversions can't read a
+            // half-drawn shared canvas.
+            this.ctx.drawImage(img, 0, 0, img.width, img.height, 0, 0, width, height);
+
+            const imageData = this.ctx.getImageData(0, 0, width, height);
+
+            // Apply edge detection if enabled
+            if (this.settings.edgeDetection) {
+                this.applyEdgeDetection(imageData);
+            }
+
+            return imageData;
         });
     }
 
@@ -923,13 +983,9 @@ class ImageAsciiConverter {
         const chars = charsetType === 'custom'
             ? (this.customChars || charsets.standard)
             : (charsets[charsetType] || charsets.standard);
-        // Array.from is grapheme-aware so emoji custom charsets (surrogate
-        // pairs) don't get split into broken halves on reversal/indexing.
-        // See hub-177.
-        let glyphs = Array.from(chars);
-        if (inverted) {
-            glyphs = glyphs.slice().reverse();
-        }
+        // Grapheme-aware ramp so emoji custom charsets (surrogate pairs) aren't
+        // split into broken halves on reversal/indexing. See hub-177.
+        const glyphs = prepareGlyphs(chars, inverted);
 
         // Per-row arrays + join() avoid the O(n²) string-concat blowup
         // that `text += char` / `html += span` produced inside the nested loop.
@@ -954,28 +1010,21 @@ class ImageAsciiConverter {
 
                 textChars[x] = char;
 
-                switch (effectiveColorMode) {
-                    case 'rgb': {
-                        const rgb = `rgb(${Math.round(r)},${Math.round(g)},${Math.round(b)})`;
-                        htmlParts[x] = `<span style="color:${rgb}">${escapeHtml(char)}</span>`;
-                        rowColors[x] = { color: rgb };
-                        break;
-                    }
-                    case 'full-rgb': {
-                        const frgb = `rgb(${Math.round(r)},${Math.round(g)},${Math.round(b)})`;
-                        const bgBrightness = brightness * 0.3;
-                        const bg = `rgba(${Math.round(r)},${Math.round(g)},${Math.round(b)},${bgBrightness / 255})`;
-                        htmlParts[x] = `<span style="color:${frgb};background:${bg}">${escapeHtml(char)}</span>`;
-                        rowColors[x] = { color: frgb, background: bg };
-                        break;
-                    }
-                    case 'ansi':
-                        htmlParts[x] = this.toAnsiColor(r, g, b, char);
-                        rowColors[x] = { color: `rgb(${Math.round(r)},${Math.round(g)},${Math.round(b)})` };
-                        break;
-                    default: // grayscale
-                        htmlParts[x] = escapeHtml(char);
-                        rowColors[x] = null;
+                // One source of truth for the cell color: the same style object
+                // feeds the <span> here and the PNG-export color buffer, so the
+                // screen and the exported image can't diverge (ANSI included).
+                const style = colorCellStyle(r, g, b, effectiveColorMode);
+                if (style.color) {
+                    const css = style.background
+                        ? `color:${style.color};background:${style.background}`
+                        : `color:${style.color}`;
+                    htmlParts[x] = `<span style="${css}">${escapeHtml(char)}</span>`;
+                    rowColors[x] = style.background
+                        ? { color: style.color, background: style.background }
+                        : { color: style.color };
+                } else {
+                    htmlParts[x] = escapeHtml(char);
+                    rowColors[x] = null;
                 }
             }
 
@@ -990,11 +1039,6 @@ class ImageAsciiConverter {
             html: htmlRows.join('\n') + '\n',
             colors
         };
-    }
-
-    toAnsiColor(r, g, b, char) {
-        const { r: ansiR, g: ansiG, b: ansiB } = ansiColor(r, g, b);
-        return `<span style="color:rgb(${ansiR},${ansiG},${ansiB})">${escapeHtml(char)}</span>`;
     }
 
     renderAscii(asciiContent) {
@@ -1240,23 +1284,23 @@ class ImageAsciiConverter {
         const monoCharWidth = ctx.measureText('M').width;
 
         if (colorMode !== 'grayscale' && this.currentAscii.colors) {
-            // Draw character by character with color
+            // Draw character by character with color. lineToCells iterates by
+            // grapheme (not UTF-16 code unit), so emoji custom charsets stay
+            // whole and each cell's color stays aligned to its grid column.
             for (let y = 0; y < lines.length; y++) {
-                const line = lines[y];
-                const rowColors = this.currentAscii.colors[y];
+                const cells = lineToCells(lines[y], this.currentAscii.colors[y]);
                 let currentX = 20;
                 const yPos = 20 + (y + 1) * fontSize * lineHeight;
 
-                for (let x = 0; x < line.length; x++) {
-                    const char = line[x];
-                    const colorData = rowColors ? rowColors[x] : null;
+                for (let x = 0; x < cells.length; x++) {
+                    const { char, style } = cells[x];
 
-                    if (colorData) {
-                        if (colorData.background) {
-                            ctx.fillStyle = colorData.background;
+                    if (style) {
+                        if (style.background) {
+                            ctx.fillStyle = style.background;
                             ctx.fillRect(currentX, yPos - fontSize * lineHeight, monoCharWidth, fontSize * lineHeight);
                         }
-                        ctx.fillStyle = colorData.color;
+                        ctx.fillStyle = style.color;
                     } else {
                         ctx.fillStyle = textColor;
                     }

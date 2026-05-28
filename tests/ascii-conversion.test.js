@@ -10,6 +10,9 @@ import {
     applyEdgeDetection,
     pixelsToText,
     escapeHtml,
+    prepareGlyphs,
+    colorCellStyle,
+    lineToCells,
 } from '../src/ascii-core.js';
 
 describe('adjustBrightnessContrast', () => {
@@ -237,5 +240,85 @@ describe('applyEdgeDetection', () => {
             }
         }
         expect(boosted).toBe(true);
+    });
+});
+
+describe('prepareGlyphs', () => {
+    it('returns one element per code point (grapheme-aware)', () => {
+        expect(prepareGlyphs(' .:-=+*#%@', false)).toEqual(
+            [' ', '.', ':', '-', '=', '+', '*', '#', '%', '@'],
+        );
+    });
+
+    it('reverses the ramp when inverted', () => {
+        expect(prepareGlyphs('abc', true)).toEqual(['c', 'b', 'a']);
+    });
+
+    it('does not mutate when not inverted', () => {
+        expect(prepareGlyphs('abc', false)).toEqual(['a', 'b', 'c']);
+    });
+
+    it('keeps surrogate-pair emoji intact (hub-177)', () => {
+        // String reversal would split the surrogate pairs into broken halves.
+        const glyphs = prepareGlyphs('🎨🔥💚', true);
+        expect(glyphs).toEqual(['💚', '🔥', '🎨']);
+    });
+});
+
+describe('colorCellStyle', () => {
+    it('returns null color/background for grayscale', () => {
+        expect(colorCellStyle(10, 20, 30, 'grayscale')).toEqual({ color: null, background: null });
+    });
+
+    it('returns rounded rgb() color and no background for rgb mode', () => {
+        expect(colorCellStyle(10.4, 20.6, 30.5, 'rgb')).toEqual({
+            color: 'rgb(10,21,31)',
+            background: null,
+        });
+    });
+
+    it('quantizes ANSI color to the 6x6x6 cube (matches the on-screen render)', () => {
+        // Regression for the ANSI export/screen mismatch: the stored color must
+        // be the quantized ANSI value, not the raw pixel rgb.
+        const { r, g, b } = ansiColor(100, 100, 100);
+        expect(colorCellStyle(100, 100, 100, 'ansi')).toEqual({
+            color: `rgb(${r},${g},${b})`,
+            background: null,
+        });
+        // And it must NOT equal the raw rgb.
+        expect(colorCellStyle(100, 100, 100, 'ansi').color).not.toBe('rgb(100,100,100)');
+    });
+
+    it('produces a luminance-scaled background for full-rgb mode', () => {
+        const style = colorCellStyle(200, 100, 50, 'full-rgb');
+        expect(style.color).toBe('rgb(200,100,50)');
+        const lum = weightedLuminance(200, 100, 50);
+        expect(style.background).toBe(`rgba(200,100,50,${(lum * 0.3) / 255})`);
+    });
+});
+
+describe('lineToCells', () => {
+    it('pairs each grapheme with its column color', () => {
+        const cells = lineToCells('ab', [{ color: 'red' }, { color: 'blue' }]);
+        expect(cells).toEqual([
+            { char: 'a', style: { color: 'red' } },
+            { char: 'b', style: { color: 'blue' } },
+        ]);
+    });
+
+    it('keeps emoji glyphs whole and aligned to their colors (hub-177 / PNG export)', () => {
+        // line[x] (UTF-16 indexing) would split these and misalign the colors.
+        const cells = lineToCells('🎨🔥', [{ color: 'a' }, { color: 'b' }]);
+        expect(cells).toHaveLength(2);
+        expect(cells[0]).toEqual({ char: '🎨', style: { color: 'a' } });
+        expect(cells[1]).toEqual({ char: '🔥', style: { color: 'b' } });
+    });
+
+    it('yields null style when rowColors is missing or sparse', () => {
+        expect(lineToCells('x', null)).toEqual([{ char: 'x', style: null }]);
+        expect(lineToCells('xy', [{ color: 'a' }])).toEqual([
+            { char: 'x', style: { color: 'a' } },
+            { char: 'y', style: null },
+        ]);
     });
 });

@@ -95,18 +95,65 @@ export function applyEdgeDetection(imageData) {
 }
 
 /**
+ * Build the glyph ramp from a charset string. Array.from is grapheme-aware
+ * (handles surrogate pairs like emoji), so reversal and indexing operate on
+ * full code points instead of splitting a surrogate pair in half (hub-177).
+ * Shared by pixelsToText and the production pixelsToAscii loop so the ramp is
+ * prepared identically in both — the one place that logic used to be duplicated.
+ */
+export function prepareGlyphs(chars, inverted) {
+    const glyphs = Array.from(chars);
+    return inverted ? glyphs.slice().reverse() : glyphs;
+}
+
+/**
+ * Resolve the CSS color (and optional background) for one cell in a given
+ * color mode, from already brightness/contrast-adjusted r,g,b. The SAME values
+ * feed both the on-screen <span> and the PNG-export color buffer, so the two
+ * renderers can never drift (ANSI in particular must be the quantized cube
+ * color, not the raw pixel rgb). Grayscale returns nulls (no per-cell color).
+ */
+export function colorCellStyle(r, g, b, colorMode) {
+    switch (colorMode) {
+        case 'rgb':
+            return { color: `rgb(${Math.round(r)},${Math.round(g)},${Math.round(b)})`, background: null };
+        case 'full-rgb': {
+            const color = `rgb(${Math.round(r)},${Math.round(g)},${Math.round(b)})`;
+            const alpha = (weightedLuminance(r, g, b) * 0.3) / 255;
+            return { color, background: `rgba(${Math.round(r)},${Math.round(g)},${Math.round(b)},${alpha})` };
+        }
+        case 'ansi': {
+            const { r: ar, g: ag, b: ab } = ansiColor(r, g, b);
+            return { color: `rgb(${ar},${ag},${ab})`, background: null };
+        }
+        default:
+            return { color: null, background: null };
+    }
+}
+
+/**
+ * Split a rendered text line into draw cells, pairing each grapheme with the
+ * per-column style from `rowColors`. Iterating via Array.from (not line[x])
+ * keeps surrogate-pair emoji whole and keeps the color index aligned with the
+ * ASCII grid column — the PNG color exporter used to index by UTF-16 code unit
+ * and split/misalign emoji. See hub-177.
+ */
+export function lineToCells(line, rowColors) {
+    const chars = Array.from(line);
+    const cells = new Array(chars.length);
+    for (let i = 0; i < chars.length; i++) {
+        cells[i] = { char: chars[i], style: rowColors ? (rowColors[i] || null) : null };
+    }
+    return cells;
+}
+
+/**
  * Convert a flat RGBA pixel buffer to plain ASCII text (grayscale path).
  * `chars` is the (already preset-selected) ramp; `inverted` reverses it.
  * One '\n' is emitted per row, including a trailing newline.
  */
 export function pixelsToText(pixels, width, height, { chars, brightness, contrast, inverted }) {
-    // Array.from is grapheme-aware (handles surrogate pairs like emoji),
-    // so reversal and indexing operate on full code points instead of
-    // potentially splitting a surrogate pair in half. See hub-177.
-    let glyphs = Array.from(chars);
-    if (inverted) {
-        glyphs = glyphs.slice().reverse();
-    }
+    const glyphs = prepareGlyphs(chars, inverted);
 
     let text = '';
     for (let y = 0; y < height; y++) {
