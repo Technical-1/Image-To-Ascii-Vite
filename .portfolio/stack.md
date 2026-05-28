@@ -80,9 +80,11 @@ The `vercel.json` file configures:
 
 ### Image Processing
 - Images are processed at the target ASCII dimensions (not full resolution), keeping Canvas operations fast
+- The decoded source `Image` is cached and keyed by its data URL, so a slider debounce redraws the small ASCII canvas without re-decoding the full-resolution source (which can be up to the 50 MB upload limit) on every change
 - Edge detection uses a Sobel filter with pre-allocated typed arrays
 - Debouncing (150ms) prevents excessive re-renders during slider adjustments
 - Brightness/contrast adjustments are inlined in the pixel loop to avoid extra passes
+- Async conversions carry a monotonic token and discard their result if a newer conversion has started, so a slow earlier decode can't overwrite fresher output
 
 ### Rendering
 - Grayscale mode uses `textContent` (no DOM parsing overhead)
@@ -91,6 +93,7 @@ The `vercel.json` file configures:
 - HTML escaping on the per-pixel hot path is a pure string replace from `src/ascii-core.js`, not a `<div>.textContent` round-trip
 - Auto-fit font sizing calculates once per render and caps RAF retries at 10 to protect against permanently-hidden containers
 - Canvas-based PNG export handles color data in a single pass and refuses upfront if dimensions would exceed the browser canvas limit
+- The PNG exporter and the on-screen renderer read the same per-cell color (`colorCellStyle`) and split lines through the same grapheme-aware helper (`lineToCells`), so the exported image matches the preview exactly — including ANSI quantization and emoji custom charsets
 
 ### Load Time
 - Critical CSS inlined in `index.html` for instant loading state

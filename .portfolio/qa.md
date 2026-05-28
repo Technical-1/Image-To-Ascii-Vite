@@ -19,8 +19,8 @@ Image to ASCII Converter is a web application that transforms any image into ASC
 ### Sobel Edge Detection
 I implemented a Sobel filter that runs on the downscaled Canvas pixel data. The 3x3 convolution kernels detect horizontal and vertical gradients, and pixels whose combined gradient magnitude exceeds a threshold are replaced with that magnitude (clamped to 255). Non-edge pixels are left untouched, so the original image remains visible underneath while edges appear as crisp bright outlines instead of additive halos. The filter operates on the already-downscaled image, so performance impact is minimal.
 
-### Dual-Output Pipeline
-The `pixelsToAscii` method generates both plain text and colored HTML in a single pixel-processing loop. Grayscale mode renders with `textContent` (no DOM parsing), while color modes use `innerHTML` with per-character `<span>` elements. This dual output means export functions can immediately use the appropriate format without re-processing.
+### One Color Source of Truth Across Screen and Export
+The `pixelsToAscii` method generates both plain text and colored HTML in a single pixel-processing loop. Grayscale mode renders with `textContent` (no DOM parsing), while color modes use `innerHTML` with per-character `<span>` elements. The subtle problem is that the live preview and the PNG exporter are two separate renderers of the same art, and they originally re-derived each cell's color independently — which let them diverge. ANSI mode painted the quantized 6×6×6 cube color on screen but stored the raw pixel RGB for export, and the PNG path indexed the text by UTF-16 code unit, splitting emoji custom charsets and shifting their colors. I pulled cell color and glyph resolution into pure helpers in `src/ascii-core.js` (`colorCellStyle`, `prepareGlyphs`, `lineToCells`) that both renderers consume, so the exported PNG matches the preview by construction instead of by two code paths happening to stay in sync.
 
 ### Auto-Fit Font Sizing
 The "Fit to Container" feature calculates the optimal font size by dividing available viewport dimensions by the ASCII grid dimensions (accounting for monospace character width ratio of ~0.6). This ensures the output always fills the screen regardless of resolution settings or window size.
@@ -79,6 +79,9 @@ I implemented a Sobel filter — a classic image processing technique that uses 
 
 ### Can I use colored ASCII output?
 Yes! The app supports four color modes. RGB and Full RGB modes produce colored HTML output that preserves in the PNG and HTML exports. The copy-to-clipboard function outputs plain text regardless of color mode, since terminal/text contexts don't support inline colors.
+
+### Will the exported PNG look exactly like the preview?
+Yes. The on-screen renderer and the canvas PNG exporter resolve each cell's color and glyph through the same pure helpers (`colorCellStyle` and `lineToCells`), so they can't drift. That matters most in two cases: ANSI mode exports the same quantized 6×6×6 cube color it shows on screen (not the raw pixel color), and emoji custom charsets stay whole and color-aligned in the PNG because lines are split by grapheme rather than by UTF-16 code unit.
 
 ### Why did you choose vanilla JavaScript over a framework?
 The application has a single view with straightforward state management. A framework would add bundle size and complexity without meaningful benefit. The `ImageAsciiConverter` class provides clean organization, and the total client-side JavaScript stays extremely lightweight.

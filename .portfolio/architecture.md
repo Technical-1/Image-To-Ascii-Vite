@@ -114,7 +114,7 @@ sequenceDiagram
 
 ### ASCII Core (`src/ascii-core.js`)
 - **Purpose**: Pure, DOM-free conversion algorithms — the same code the test suite imports, so a regression in the production hot path fails the unit tests
-- **Key responsibilities**: Brightness/contrast adjustment, weighted luminance, character ramp mapping, ANSI 256-color quantization, Sobel edge detection, pure HTML escape (avoids per-character DOM allocations on the color-render hot path)
+- **Key responsibilities**: Brightness/contrast adjustment, weighted luminance, character ramp mapping, ANSI 256-color quantization, Sobel edge detection, pure HTML escape (avoids per-character DOM allocations on the color-render hot path), and three shared cell helpers — `prepareGlyphs` (grapheme-aware ramp), `colorCellStyle` (the single source of truth for a cell's color, consumed by both the on-screen `<span>` and the PNG-export color buffer), and `lineToCells` (grapheme-aware split that keeps emoji whole and colors column-aligned during PNG export)
 
 ### Settings Schema (`src/settings-schema.js`)
 - **Purpose**: Authoritative settings schema, defaults, and validation/clamping
@@ -152,16 +152,21 @@ I deliberately avoided React, Vue, or other frameworks because:
 ### 5. Debounced Real-Time Updates
 I implemented a 150ms debounce on all setting changes to balance responsiveness with performance. This prevents excessive re-renders during rapid slider movements while keeping the feel interactive.
 
-### 6. Dual Color Output Pipeline
+### 6. Dual Color Output Pipeline With a Single Color Source of Truth
 The converter generates both plain text and colored HTML in a single pass. This enables:
 - Grayscale mode using `textContent` (fast, no DOM overhead)
 - Color modes using per-character `<span>` elements with inline styles
 - Export functions can choose the appropriate format without re-conversion
 
+The on-screen renderer and the PNG exporter are two independent consumers of the conversion result, and they used to re-derive each cell's color separately — which let them disagree (ANSI mode showed the quantized 6×6×6 cube color on screen but exported the raw pixel RGB, and the PNG exporter indexed text by UTF-16 code unit so emoji custom charsets split and their colors misaligned). Both paths now read one `colorCellStyle()` result per cell and iterate glyphs through one grapheme-aware `lineToCells()` helper, so the preview and the exported PNG are guaranteed identical by construction rather than by two code paths happening to agree.
+
 A 500k-cell budget (`MAX_COLOR_CELLS`) guards the per-character `<span>` path: above the budget, both the HTML build in `pixelsToAscii` and the render step in `renderAscii` fall back to text-only output with a one-shot toast. This prevents the 4M-node DOM (~150 MB) that 2000×2000 color rendering would otherwise produce from OOMing mobile Safari.
 
 ### 7. Auto-Fit Font Sizing
 Rather than requiring users to manually set font sizes, the "Fit to Container" mode calculates the optimal font size based on the viewport dimensions and ASCII grid size. This ensures the output always fills the available space.
+
+### 8. Ordering Guarantees for an Async, Debounced Pipeline
+Conversion is async (it awaits an image decode) and is driven by debounced slider input, so a newer conversion can start before an older one finishes. Without a guard, a slow earlier decode can resolve *after* a faster later one and overwrite the fresh output with stale art. Each run captures a monotonic `_convertToken` and bails after the await if a newer run has superseded it — the same pattern the upload path uses to drop late `FileReader`/`Image` callbacks. Separately, every debounce used to re-decode the full-resolution source (up to the 50 MB upload limit) before drawing the small ASCII canvas; `_getDecodedImage` now caches the decoded `Image` keyed by its data URL, so re-decoding happens only when the source image actually changes.
 
 ## Component Responsibilities
 
