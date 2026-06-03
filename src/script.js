@@ -11,6 +11,7 @@ import {
     prepareGlyphs,
     colorCellStyle,
     lineToCells,
+    sumAdvances,
 } from './ascii-core.js';
 import { DEFAULT_SETTINGS, MIN_DIMENSION, MAX_DIMENSION, clampDimension, clampToSliderMax, capGraphemes, sanitizeSettings, isColorRenderTractable } from './settings-schema.js';
 import { encodeShare, decodeShare, validateShare } from './share-codec.js';
@@ -1245,7 +1246,19 @@ class ImageAsciiConverter {
 
         // Calculate dimensions
         const lines = this.currentAscii.text.split('\n').filter(l => l.length > 0);
-        const maxWidth = lines.length > 0 ? Math.max(...lines.map(line => ctx.measureText(line).width)) : 100;
+
+        // Per-cell advance: constant 'M' width for the built-in monospace charsets
+        // (keeps the hub-174 measure-once fast path), but per-glyph measurement for a
+        // custom charset in a color mode, where emoji are wider than 'M'. hub-1108.
+        const isCustomColor = colorMode !== 'grayscale' && this.settings.charsetType === 'custom';
+        const monoCharWidth = ctx.measureText('M').width;
+        const advanceFor = isCustomColor ? (ch) => ctx.measureText(ch).width : () => monoCharWidth;
+
+        // Size the canvas from the SAME advances we draw with, so a custom charset
+        // can never overflow the right edge or clip.
+        const maxWidth = lines.length > 0
+            ? Math.max(...lines.map((line) => sumAdvances(line, advanceFor)))
+            : 100;
         const canvasHeight = lines.length * fontSize * lineHeight;
 
         const targetWidth = maxWidth + 40;
@@ -1274,11 +1287,6 @@ class ImageAsciiConverter {
         // Set font again after resize
         ctx.font = `${fontSize}px 'Courier New', monospace`;
 
-        // Monospace: every glyph in 'Courier New' has the same advance width.
-        // Measure once instead of per-char (hub-174): at max grid size this
-        // saved millions of measureText() calls and seconds of UI freeze.
-        const monoCharWidth = ctx.measureText('M').width;
-
         if (colorMode !== 'grayscale' && this.currentAscii.colors) {
             // Draw character by character with color. lineToCells iterates by
             // grapheme (not UTF-16 code unit), so emoji custom charsets stay
@@ -1290,11 +1298,12 @@ class ImageAsciiConverter {
 
                 for (let x = 0; x < cells.length; x++) {
                     const { char, style } = cells[x];
+                    const adv = advanceFor(char);
 
                     if (style) {
                         if (style.background) {
                             ctx.fillStyle = style.background;
-                            ctx.fillRect(currentX, yPos - fontSize * lineHeight, monoCharWidth, fontSize * lineHeight);
+                            ctx.fillRect(currentX, yPos - fontSize * lineHeight, adv, fontSize * lineHeight);
                         }
                         ctx.fillStyle = style.color;
                     } else {
@@ -1302,7 +1311,7 @@ class ImageAsciiConverter {
                     }
 
                     ctx.fillText(char, currentX, yPos);
-                    currentX += monoCharWidth;
+                    currentX += adv;
                 }
             }
         } else {

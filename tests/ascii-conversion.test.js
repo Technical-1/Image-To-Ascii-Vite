@@ -13,6 +13,7 @@ import {
     prepareGlyphs,
     colorCellStyle,
     lineToCells,
+    sumAdvances,
 } from '../src/ascii-core.js';
 
 describe('adjustBrightnessContrast', () => {
@@ -321,4 +322,20 @@ describe('lineToCells', () => {
             { char: 'y', style: null },
         ]);
     });
+});
+
+describe('sumAdvances', () => {
+  it('sums a constant advance across a monospace line', () => {
+    expect(sumAdvances('abc', () => 10)).toBe(30);
+  });
+  it('counts a surrogate-pair emoji as ONE cell (code-point iteration)', () => {
+    // UTF-16 indexing would see 4 code units → 28; code-point iteration sees 2 → 14.
+    expect(sumAdvances('🎨🔥', () => 7)).toBe(14);
+  });
+  it('supports a variable per-glyph advance', () => {
+    expect(sumAdvances('ab', (ch) => (ch === 'a' ? 5 : 3))).toBe(8);
+  });
+  it('returns 0 for an empty line', () => {
+    expect(sumAdvances('', () => 9)).toBe(0);
+  });
 });

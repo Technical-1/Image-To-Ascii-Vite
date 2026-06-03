@@ -148,6 +148,19 @@ export function lineToCells(line, rowColors) {
 }
 
 /**
+ * Sum per-cell horizontal advances across a rendered line, iterating by code
+ * point so a surrogate-pair emoji counts as ONE cell (matching lineToCells and
+ * the ASCII grid column count). `advanceFor(char)` returns the advance for one
+ * glyph. The PNG exporter sizes its canvas from the SAME advances it draws with,
+ * so a non-monospace custom charset can't overflow or clip. hub-1108.
+ */
+export function sumAdvances(line, advanceFor) {
+    let width = 0;
+    for (const ch of line) width += advanceFor(ch);
+    return width;
+}
+
+/**
  * Convert a flat RGBA pixel buffer to plain ASCII text (grayscale path).
  * `chars` is the (already preset-selected) ramp; `inverted` reverses it.
  * One '\n' is emitted per row, including a trailing newline.
