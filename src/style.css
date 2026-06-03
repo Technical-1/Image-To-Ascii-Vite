@@ -364,7 +364,7 @@ input[type="range"]::-moz-range-thumb {
   background: #000;
   font-family: 'Courier New', monospace;
   font-size: 8px;
-  line-height: 0.7;
+  line-height: 1.0;
   color: var(--accent);
   white-space: pre;
 }

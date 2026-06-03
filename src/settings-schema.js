@@ -49,7 +49,7 @@ export const DEFAULT_SETTINGS = {
   inverted: false,
   edgeDetection: false,
   fontSize: 8,
-  lineHeight: 0.7, // intentionally within the [0.5, 1.5] clamp range
+  lineHeight: 1.0, // within the [0.5, 1.5] clamp range; 1.0 keeps the auto-fit scaling proportional
   preserveAspectRatio: true,
   fitToContainer: true,
 };
