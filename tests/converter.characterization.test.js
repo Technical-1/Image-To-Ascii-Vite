@@ -6,14 +6,19 @@ import { DEFAULT_SETTINGS } from '../src/settings-schema.js';
 
 const IMG = 'data:image/png;base64,iVBORw0KGgo=';
 
+// File-level isolation: clear persisted settings before EVERY test in this file
+// so no describe block leaks state into another. The hook runs before each test
+// body, and the settings-restore tests seed localStorage inside the test body
+// (after this hook), so seeding still works.
+beforeEach(() => { localStorage.clear(); });
+
 // Fresh DOM + stub + module per test. script.js auto-start is gated off under
 // NODE_ENV=test, so importing it only defines the class.
 async function freshConverter() {
     document.body.innerHTML = '<div id="app"></div>';
-    // NOTE: do NOT clear localStorage here — the settings-restore tests seed
-    // localStorage immediately before calling freshConverter(), and the
-    // converter reads it in its constructor. Per-test isolation is handled by
-    // the describe-level beforeEach (and each test seeds the store it needs).
+    // NOTE: do NOT clear localStorage here — the settings-restore tests seed it
+    // immediately before calling freshConverter(), and the converter reads it in
+    // its constructor. Per-test isolation is handled by the file-level beforeEach.
     location.hash = '';
     installCanvasStub();
     const { ImageAsciiConverter } = await import('../src/script.js?t=' + Math.random());
@@ -21,8 +26,6 @@ async function freshConverter() {
 }
 
 describe('settings restore (applySettings)', () => {
-    beforeEach(() => { localStorage.clear(); });
-
     it('reflects persisted settings into the create-mode controls', async () => {
         localStorage.setItem('imageAsciiSettings', JSON.stringify({
             ...DEFAULT_SETTINGS, colorMode: 'rgb', brightness: 1.5,
