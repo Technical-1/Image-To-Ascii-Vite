@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { DEFAULT_SETTINGS, sanitizeSettings, capGraphemes } from '../src/settings-schema.js';
-import { MIN_DIMENSION, MAX_DIMENSION, clampDimension } from '../src/settings-schema.js';
+import { MIN_DIMENSION, MAX_DIMENSION, clampDimension, clampToSliderMax } from '../src/settings-schema.js';
 import { MAX_COLOR_CELLS, isColorRenderTractable } from '../src/settings-schema.js';
 
 describe('sanitizeSettings', () => {
@@ -133,5 +133,31 @@ describe('capGraphemes', () => {
   });
   it('coerces non-string input to string first', () => {
     expect(capGraphemes(12345, 3)).toBe('123');
+  });
+});
+
+describe('clampToSliderMax', () => {
+  it('passes a value through when it is within both the global cap and the slider max', () => {
+    expect(clampToSliderMax(500, 1000)).toBe(500);
+  });
+  it('clamps down to the live slider max (image-derived ceiling)', () => {
+    expect(clampToSliderMax(1500, 1000)).toBe(1000);
+  });
+  it('clamps down to MAX_DIMENSION when the slider max is higher', () => {
+    expect(clampToSliderMax(3000, 5000)).toBe(MAX_DIMENSION);
+  });
+  it('floors below MIN_DIMENSION up to MIN_DIMENSION', () => {
+    expect(clampToSliderMax(5, 1000)).toBe(MIN_DIMENSION);
+  });
+  it('treats a tiny slider max as MIN_DIMENSION (never below the contract floor)', () => {
+    expect(clampToSliderMax(50, 5)).toBe(MIN_DIMENSION);
+  });
+  it('falls back to MAX_DIMENSION when no slider max is available (no image yet)', () => {
+    expect(clampToSliderMax(1500, NaN)).toBe(1500);
+    expect(clampToSliderMax(3000, undefined)).toBe(MAX_DIMENSION);
+    expect(clampToSliderMax(800, null)).toBe(800);
+  });
+  it('rounds non-integer requests via clampDimension before applying the slider max', () => {
+    expect(clampToSliderMax(123.7, 1000)).toBe(124);
   });
 });

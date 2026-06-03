@@ -12,7 +12,7 @@ import {
     colorCellStyle,
     lineToCells,
 } from './ascii-core.js';
-import { DEFAULT_SETTINGS, MIN_DIMENSION, MAX_DIMENSION, clampDimension, capGraphemes, sanitizeSettings, isColorRenderTractable } from './settings-schema.js';
+import { DEFAULT_SETTINGS, MIN_DIMENSION, MAX_DIMENSION, clampDimension, clampToSliderMax, capGraphemes, sanitizeSettings, isColorRenderTractable } from './settings-schema.js';
 import { encodeShare, decodeShare, validateShare } from './share-codec.js';
 
 /**
@@ -258,11 +258,11 @@ class ImageAsciiConverter {
                             <div class="custom-resolution hidden" id="custom-resolution">
                                 <div class="slider-row">
                                     <label>W: <span id="width-value">${this.settings.width}</span></label>
-                                    <input type="range" id="width-slider" min="10" max="1000" value="${this.settings.width}" step="1">
+                                    <input type="range" id="width-slider" min="${MIN_DIMENSION}" max="${MAX_DIMENSION}" value="${this.settings.width}" step="1">
                                 </div>
                                 <div class="slider-row">
                                     <label>H: <span id="height-value">${this.settings.height}</span></label>
-                                    <input type="range" id="height-slider" min="10" max="1000" value="${this.settings.height}" step="1">
+                                    <input type="range" id="height-slider" min="${MIN_DIMENSION}" max="${MAX_DIMENSION}" value="${this.settings.height}" step="1">
                                 </div>
                                 <label class="checkbox-inline">
                                     <input type="checkbox" id="aspect-ratio-checkbox" checked>
@@ -540,17 +540,10 @@ class ImageAsciiConverter {
                 // Calculate dimensions based on percentage of actual image
                 if (this.currentImage) {
                     const percent = parseInt(e.target.value, 10) / 100;
-                    // clampDimension enforces the shared MAX_DIMENSION ceiling.
-                    const width = clampDimension(this.currentImage.width * percent);
-                    // Divide height by 2 because ASCII chars are taller than wide.
-                    const height = clampDimension((this.currentImage.height * percent) / 2);
-                    this.settings.width = width;
-                    this.settings.height = height;
                     this.updateSliderMax();
-                    document.getElementById('width-slider').value = width;
-                    document.getElementById('height-slider').value = height;
-                    document.getElementById('width-value').textContent = width;
-                    document.getElementById('height-value').textContent = height;
+                    this.syncDimension('width', this.currentImage.width * percent);
+                    // Divide height by 2 because ASCII chars are taller than wide.
+                    this.syncDimension('height', (this.currentImage.height * percent) / 2);
                     this.saveSettings();
                     this.debounceConvert();
                 }
@@ -561,19 +554,13 @@ class ImageAsciiConverter {
         const widthSlider = document.getElementById('width-slider');
         const heightSlider = document.getElementById('height-slider');
         widthSlider.addEventListener('input', (e) => {
-            const value = clampDimension(parseInt(e.target.value, 10));
-            document.getElementById('width-value').textContent = value;
-            widthSlider.value = value;
+            const value = this.syncDimension('width', parseInt(e.target.value, 10));
             document.getElementById('resolution-select').value = 'custom';
             document.getElementById('custom-resolution').classList.remove('hidden');
-            this.settings.width = value;
             if (this.settings.preserveAspectRatio && this.currentImage) {
                 // /2 because ASCII chars are roughly twice as tall as wide.
                 const aspectRatio = this.currentImage.width / this.currentImage.height;
-                const linkedHeight = clampDimension(Math.round(value / aspectRatio / 2));
-                this.settings.height = linkedHeight;
-                heightSlider.value = linkedHeight;
-                document.getElementById('height-value').textContent = linkedHeight;
+                this.syncDimension('height', value / aspectRatio / 2);
             }
             this.saveSettings();
             this.debounceConvert();
@@ -581,18 +568,12 @@ class ImageAsciiConverter {
 
         // Height slider
         heightSlider.addEventListener('input', (e) => {
-            const value = clampDimension(parseInt(e.target.value, 10));
-            document.getElementById('height-value').textContent = value;
-            heightSlider.value = value;
+            const value = this.syncDimension('height', parseInt(e.target.value, 10));
             document.getElementById('resolution-select').value = 'custom';
             document.getElementById('custom-resolution').classList.remove('hidden');
-            this.settings.height = value;
             if (this.settings.preserveAspectRatio && this.currentImage) {
                 const aspectRatio = this.currentImage.width / this.currentImage.height;
-                const linkedWidth = clampDimension(Math.round(value * 2 * aspectRatio));
-                this.settings.width = linkedWidth;
-                widthSlider.value = linkedWidth;
-                document.getElementById('width-value').textContent = linkedWidth;
+                this.syncDimension('width', value * 2 * aspectRatio);
             }
             this.saveSettings();
             this.debounceConvert();
@@ -699,11 +680,10 @@ class ImageAsciiConverter {
 
     applySettings() {
         // Apply saved settings to UI
-        document.getElementById('width-slider').value = this.settings.width;
-        document.getElementById('width-value').textContent = this.settings.width;
-
-        document.getElementById('height-slider').value = this.settings.height;
-        document.getElementById('height-value').textContent = this.settings.height;
+        // Route through syncDimension so a persisted dimension that exceeds the
+        // current slider max can't leave the thumb and label disagreeing. hub-1106.
+        this.syncDimension('width', this.settings.width);
+        this.syncDimension('height', this.settings.height);
 
         // The resolution dropdown's percentage options are relative to a loaded
         // image, which doesn't exist yet on restore. If the persisted dims
@@ -835,19 +815,16 @@ class ImageAsciiConverter {
                 const resolutionSelect = document.getElementById('resolution-select');
                 if (resolutionSelect.value !== 'custom') {
                     const percent = parseInt(resolutionSelect.value, 10) / 100;
-                    this.settings.width = clampDimension(this.currentImage.width * percent);
-                    this.settings.height = clampDimension((this.currentImage.height * percent) / 2);
-                    document.getElementById('width-slider').value = this.settings.width;
-                    document.getElementById('height-slider').value = this.settings.height;
-                    document.getElementById('width-value').textContent = this.settings.width;
-                    document.getElementById('height-value').textContent = this.settings.height;
+                    this.syncDimension('width', this.currentImage.width * percent);
+                    this.syncDimension('height', (this.currentImage.height * percent) / 2);
                     this.saveSettings();
                 } else if (this.settings.preserveAspectRatio) {
-                    // Auto-adjust height to preserve aspect ratio for custom mode
+                    // updateSliderMax (called above) may have lowered the width slider's max
+                    // for a smaller image — re-clamp the carried-over width so slider/label/
+                    // setting agree, THEN derive height from the freshly-clamped width. hub-1110.
+                    const width = this.syncDimension('width', this.settings.width);
                     const aspectRatio = previewImg.naturalWidth / previewImg.naturalHeight;
-                    this.settings.height = clampDimension(this.settings.width / aspectRatio / 2);
-                    document.getElementById('height-slider').value = this.settings.height;
-                    document.getElementById('height-value').textContent = this.settings.height;
+                    this.syncDimension('height', width / aspectRatio / 2);
                     this.saveSettings();
                 }
                 
@@ -1404,6 +1381,21 @@ class ImageAsciiConverter {
         // browsers (older Safari, certain Firefox configurations) cancel
         // the save if the URL is revoked synchronously after click().
         setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    // Single source of truth for writing a width/height. Clamps the requested
+    // value to the global contract AND the live slider max, then sets the slider
+    // thumb, the numeric label, and this.settings together so they can never
+    // disagree. Returns the value actually written. hub-1106/1110.
+    syncDimension(dim, requested) {
+        const slider = document.getElementById(`${dim}-slider`);
+        const valueEl = document.getElementById(`${dim}-value`);
+        const sliderMax = slider ? parseInt(slider.max, 10) : MAX_DIMENSION;
+        const value = clampToSliderMax(requested, sliderMax);
+        this.settings[dim] = value;
+        if (slider) slider.value = value;
+        if (valueEl) valueEl.textContent = value;
+        return value;
     }
 
     updateSliderMax() {

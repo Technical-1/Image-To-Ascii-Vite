@@ -15,6 +15,20 @@ export function clampDimension(n) {
     return Math.max(MIN_DIMENSION, Math.min(MAX_DIMENSION, Math.round(n)));
 }
 
+// Clamp a requested dimension to BOTH the global [MIN, MAX] contract and the
+// live slider max. updateSliderMax lowers the slider max to the loaded image's
+// size, so a value valid under MAX_DIMENSION can still exceed the slider; the
+// range <input> would silently clamp the thumb while the label kept the larger
+// number. A non-finite sliderMax means "no image yet" → fall back to the global
+// ceiling. Pure so create-mode and tests share one definition. hub-1106/1110.
+export function clampToSliderMax(requested, sliderMax) {
+    const base = clampDimension(requested);
+    const max = Number.isFinite(sliderMax)
+        ? Math.max(MIN_DIMENSION, Math.floor(sliderMax))
+        : MAX_DIMENSION;
+    return Math.min(base, max);
+}
+
 // Cap a string to `max` CODE POINTS without bisecting a surrogate pair.
 // String#slice counts UTF-16 code units, so slicing at 200 can split an emoji
 // into a lone high surrogate; Array.from is code-point-aware, matching the
