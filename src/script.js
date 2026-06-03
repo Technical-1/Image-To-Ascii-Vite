@@ -1013,11 +1013,14 @@ if (!__isTestEnv) {
 
     // Register the offline service worker. Registered here (an external module)
     // rather than an inline <script> so it complies with the deployed CSP
-    // (script-src 'self'). Guarded so it no-ops where SW is unsupported and
-    // under the jsdom test environment.
-    if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+    // (script-src 'self'). Gated to production builds so the dev server's
+    // unhashed modules / HMR aren't shadowed by a cache, and guarded so it
+    // no-ops where service workers are unsupported.
+    if (import.meta.env.PROD && typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
         window.addEventListener('load', () => {
-            navigator.serviceWorker.register('/sw.js').catch(() => { /* offline support is best-effort */ });
+            navigator.serviceWorker.register('/sw.js').catch((err) => {
+                console.debug('Service worker registration skipped:', err && err.message);
+            });
         });
     }
 }

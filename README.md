@@ -100,7 +100,7 @@ Image-To-Ascii-Vite/
 ├── vite.config.js          # Vite build configuration
 ├── vercel.json             # Vercel deployment, CSP/security headers
 ├── public/
-│   ├── favicon-{16,32,180,512}.png   # Favicons at multiple sizes
+│   ├── favicon-{16,32,180,192,512}.png  # Favicons + PWA icons at multiple sizes
 │   ├── favicon.svg                    # Scalable favicon (primary)
 │   ├── og-image.png                   # Open Graph / social preview image
 │   ├── manifest.webmanifest           # PWA manifest (installable metadata)
