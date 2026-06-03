@@ -1010,5 +1010,15 @@ export class ImageAsciiConverter {
 const __isTestEnv = typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'test';
 if (!__isTestEnv) {
     new ImageAsciiConverter();
+
+    // Register the offline service worker. Registered here (an external module)
+    // rather than an inline <script> so it complies with the deployed CSP
+    // (script-src 'self'). Guarded so it no-ops where SW is unsupported and
+    // under the jsdom test environment.
+    if (typeof navigator !== 'undefined' && 'serviceWorker' in navigator) {
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('/sw.js').catch(() => { /* offline support is best-effort */ });
+        });
+    }
 }
 

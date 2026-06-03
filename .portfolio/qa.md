@@ -104,5 +104,8 @@ Yes on both counts. The upload area is exposed as `role="button"` with `tabindex
 ### What happens if I crank the resolution to max with a color mode on?
 The converter clamps the underlying canvas at 2000×2000 (4M pixels). Above 500,000 cells in a color mode, the renderer falls back to grayscale text and shows a one-shot toast explaining that color rendering needs a lower resolution — without that guard, generating 4M `<span>` elements would allocate around 150 MB of DOM nodes and freeze (or crash) mobile Safari. Grayscale rendering is one `textContent` write and stays fast all the way up to the canvas clamp.
 
+### Does it work offline, and can I install it?
+Yes to both. A hand-rolled service worker (`public/sw.js`, no dependencies) caches the app shell and its assets with a stale-while-revalidate strategy, so after the first online visit the whole app works offline — including opening a shared `#s=` link, since the artwork is encoded in the URL and regenerated client-side. A web app manifest (`public/manifest.webmanifest`) makes it installable to a home screen as a standalone app. The worker is registered from `src/script.js` (not an inline script) to stay within the deployed `script-src 'self'` CSP.
+
 ### How do I report bugs or suggest features?
 The project is hosted on GitHub. You can open an issue or pull request at [github.com/Technical-1/Image-To-Ascii-Vite](https://github.com/Technical-1/Image-To-Ascii-Vite).

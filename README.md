@@ -4,7 +4,7 @@ A feature-rich web application for converting images to ASCII art with real-time
 
 Upload any image and customize the output with adjustable resolution, brightness, contrast, edge detection, and color modes. Share your creations via self-contained links encoded in the URL, or export as TXT, PNG, or HTML.
 
-**Live Demo**: [https://image-to-ascii-nine.vercel.app](https://image-to-ascii-nine.vercel.app)
+**Live Demo**: [https://image-to-ascii-fast.vercel.app](https://image-to-ascii-fast.vercel.app)
 
 ## Features
 
@@ -21,6 +21,7 @@ Upload any image and customize the output with adjustable resolution, brightness
 - **Multi-format Export** - Copy to clipboard, download as TXT, PNG (with color), or standalone HTML
 - **Fit to Container** - Auto-calculates font size to fill the viewport, or manual font/line-height control
 - **Persistent Settings** - All preferences saved to localStorage across sessions
+- **Installable & Offline** - Installable as a PWA; a hand-rolled service worker (zero dependencies) caches the app shell so the whole app — including opening shared `#s=` links — works fully offline after the first visit
 - **Responsive Design** - Sidebar layout on desktop, stacked layout on mobile
 
 ## Tech Stack
@@ -101,7 +102,9 @@ Image-To-Ascii-Vite/
 ├── public/
 │   ├── favicon-{16,32,180,512}.png   # Favicons at multiple sizes
 │   ├── favicon.svg                    # Scalable favicon (primary)
-│   └── og-image.png                   # Open Graph / social preview image
+│   ├── og-image.png                   # Open Graph / social preview image
+│   ├── manifest.webmanifest           # PWA manifest (installable metadata)
+│   └── sw.js                          # Offline service worker (zero deps)
 ├── src/
 │   ├── script.js           # ImageAsciiConverter — stateful UI orchestrator
 │   ├── ascii-core.js       # Pure DOM-free conversion algorithms (shared with tests)
