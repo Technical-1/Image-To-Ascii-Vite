@@ -12,7 +12,7 @@ import {
     colorCellStyle,
     lineToCells,
 } from './ascii-core.js';
-import { DEFAULT_SETTINGS, MIN_DIMENSION, MAX_DIMENSION, clampDimension, sanitizeSettings, isColorRenderTractable } from './settings-schema.js';
+import { DEFAULT_SETTINGS, MIN_DIMENSION, MAX_DIMENSION, clampDimension, capGraphemes, sanitizeSettings, isColorRenderTractable } from './settings-schema.js';
 import { encodeShare, decodeShare, validateShare } from './share-codec.js';
 
 /**
@@ -614,9 +614,9 @@ class ImageAsciiConverter {
 
         // Custom charset
         document.getElementById('custom-charset').addEventListener('input', (e) => {
-            // Cap to 200 to match sanitizeSettings, so a shared link reproduces
-            // bit-identically (the viewer always sees the sanitized <=200 value).
-            const value = e.target.value.slice(0, 200);
+            // Code-point cap so the live ramp matches the sanitized (shared-link) value
+            // and never carries a lone surrogate. hub-1109.
+            const value = capGraphemes(e.target.value, 200);
             this.settings.customCharset = value;
             this.customChars = value || EMPTY_CUSTOM_CHARSET_FALLBACK;
             this.saveSettings();
@@ -760,6 +760,14 @@ class ImageAsciiConverter {
         return;
     }
 
+        // SVG has no reliable intrinsic raster size and can encode external refs; the
+        // share codec already excludes SVG (RASTER_DATA_URI), so the create path must
+        // match. Reject up front with a clear message instead of failing at draw time.
+        if (file.type === 'image/svg+xml') {
+            this.showToast('SVG is not supported. Please use a PNG, JPEG, GIF, or WebP image.', 'error');
+            return;
+        }
+
         const MAX_FILE_SIZE = 50 * 1024 * 1024; // 50MB
         if (file.size > MAX_FILE_SIZE) {
             this.showToast('File too large. Maximum size is 50MB.', 'error');
@@ -780,6 +788,17 @@ class ImageAsciiConverter {
 
             previewImg.onload = () => {
                 if (this._uploadToken !== uploadToken) return; // newer upload superseded this one
+
+                // A decode can "succeed" with zero intrinsic size (a dimensionless image, or a
+                // malformed raster that slipped past the MIME check). drawImage with a 0×0
+                // source rect throws downstream, so reject here with a clear message instead of
+                // a misleading "Image loaded successfully!" followed by "Error:". hub-1107.
+                if (!previewImg.naturalWidth || !previewImg.naturalHeight) {
+                    previewContainer.classList.add('hidden');
+                    this.showToast('Could not read image dimensions. The file may be corrupt or an unsupported format.', 'error');
+                    return;
+                }
+
                 imageInfo.textContent = '';
 
                 const fileSpan = document.createElement('span');

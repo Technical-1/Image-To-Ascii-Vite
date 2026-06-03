@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { DEFAULT_SETTINGS, sanitizeSettings } from '../src/settings-schema.js';
+import { DEFAULT_SETTINGS, sanitizeSettings, capGraphemes } from '../src/settings-schema.js';
 import { MIN_DIMENSION, MAX_DIMENSION, clampDimension } from '../src/settings-schema.js';
 import { MAX_COLOR_CELLS, isColorRenderTractable } from '../src/settings-schema.js';
 
@@ -21,6 +21,11 @@ describe('sanitizeSettings', () => {
     const s = sanitizeSettings({ inverted: 1, customCharset: 'a'.repeat(500) }, DEFAULT_SETTINGS);
     expect(s.inverted).toBe(true);
     expect(s.customCharset.length).toBe(200);
+  });
+  it('caps customCharset by code point so emoji are never split (hub-1109)', () => {
+    const s = sanitizeSettings({ customCharset: '🎨'.repeat(250) }, DEFAULT_SETTINGS);
+    expect(Array.from(s.customCharset)).toHaveLength(200);
+    expect(s.customCharset).not.toMatch(/[\uD800-\uDBFF]$/);
   });
   it('clamps brightness/contrast/fontSize/lineHeight to range', () => {
     const s = sanitizeSettings({ brightness: 99, contrast: 0, fontSize: 1, lineHeight: 9 }, DEFAULT_SETTINGS);
@@ -103,5 +108,30 @@ describe('isColorRenderTractable', () => {
   });
   it('exposes the constant', () => {
     expect(MAX_COLOR_CELLS).toBeGreaterThan(0);
+  });
+});
+
+describe('capGraphemes', () => {
+  it('returns the string unchanged when under the cap', () => {
+    expect(capGraphemes('abc', 200)).toBe('abc');
+  });
+  it('caps ASCII at exactly `max` code points', () => {
+    expect(capGraphemes('a'.repeat(500), 200).length).toBe(200);
+  });
+  it('keeps an exactly-`max`-length string intact', () => {
+    expect(capGraphemes('a'.repeat(200), 200).length).toBe(200);
+  });
+  it('caps emoji by code point without leaving a lone surrogate', () => {
+    // 250 painters, each a surrogate pair (2 UTF-16 code units).
+    const result = capGraphemes('🎨'.repeat(250), 200);
+    // 200 code points...
+    expect(Array.from(result)).toHaveLength(200);
+    // ...which is 400 UTF-16 code units (pairs intact, none bisected)...
+    expect(result.length).toBe(400);
+    // ...and the string must not end on a dangling high surrogate.
+    expect(result).not.toMatch(/[\uD800-\uDBFF]$/);
+  });
+  it('coerces non-string input to string first', () => {
+    expect(capGraphemes(12345, 3)).toBe('123');
   });
 });

@@ -15,6 +15,15 @@ export function clampDimension(n) {
     return Math.max(MIN_DIMENSION, Math.min(MAX_DIMENSION, Math.round(n)));
 }
 
+// Cap a string to `max` CODE POINTS without bisecting a surrogate pair.
+// String#slice counts UTF-16 code units, so slicing at 200 can split an emoji
+// into a lone high surrogate; Array.from is code-point-aware, matching the
+// grapheme handling in ascii-core's prepareGlyphs (hub-177). hub-1109.
+export function capGraphemes(str, max) {
+    const points = Array.from(String(str));
+    return points.length <= max ? points.join('') : points.slice(0, max).join('');
+}
+
 export const DEFAULT_SETTINGS = {
   width: 100,
   height: 75,
@@ -58,7 +67,7 @@ export function sanitizeSettings(raw, defaults = DEFAULT_SETTINGS) {
     edgeDetection: r.edgeDetection !== undefined ? Boolean(r.edgeDetection) : defaults.edgeDetection,
     preserveAspectRatio: r.preserveAspectRatio !== undefined ? Boolean(r.preserveAspectRatio) : defaults.preserveAspectRatio,
     fitToContainer: r.fitToContainer !== undefined ? Boolean(r.fitToContainer) : defaults.fitToContainer,
-    customCharset: String(r.customCharset ?? defaults.customCharset).slice(0, 200),
+    customCharset: capGraphemes(r.customCharset ?? defaults.customCharset, 200),
   };
 }
 
