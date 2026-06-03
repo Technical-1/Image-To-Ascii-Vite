@@ -1,20 +1,13 @@
 // Import CSS
 import './style.css';
 
-// Core conversion algorithms (shared with the test suite).
-import {
-    adjustBrightnessContrast,
-    weightedLuminance,
-    charForBrightness,
-    applyEdgeDetection,
-    escapeHtml,
-    prepareGlyphs,
-    colorCellStyle,
-    lineToCells,
-    sumAdvances,
-} from './ascii-core.js';
+// Core conversion algorithms now live in the extracted modules below.
+import { pixelsToAscii as pixelsToAsciiCore, drawToImageData } from './image-processor.js';
+import { exportTxtBlob, exportHtmlBlob, buildPngCanvas, downloadBlob as downloadBlobUtil } from './export-manager.js';
 import { DEFAULT_SETTINGS, MIN_DIMENSION, MAX_DIMENSION, clampDimension, clampToSliderMax, capGraphemes, sanitizeSettings, isColorRenderTractable } from './settings-schema.js';
-import { encodeShare, decodeShare, validateShare } from './share-codec.js';
+import { decodeShare, validateShare } from './share-codec.js';
+import { buildShareUrl } from './share-manager.js';
+import { createUiMarkup, PRESETS } from './ui-manager.js';
 
 /**
  * Image to ASCII Converter
@@ -28,64 +21,8 @@ const VIEW_EXPORT_BUTTON_IDS = ['copy-btn', 'export-txt-btn', 'export-png-btn', 
 // create mode and view mode so a shared link reproduces byte-identically.
 const EMPTY_CUSTOM_CHARSET_FALLBACK = ' .:-=+*#%@';
 
-// Character set presets (matching video project)
-const charsets = {
-    standard: ' .:-=+*#%@',
-    detailed: ' .\'`^",:;Il!i><~+_-?][}{1)(|\\/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$',
-    blocks: ' ░▒▓█',
-    binary: ' █',
-    dots: ' .·:•',
-    custom: ' .:-=+*#%@'
-};
-
-// Style presets (matching video project)
-const presets = {
-    classic: {
-        charsetType: 'standard',
-        colorMode: 'grayscale',
-        inverted: false,
-        brightness: 1.0,
-        contrast: 1.0
-    },
-    colored: {
-        charsetType: 'standard',
-        colorMode: 'rgb',
-        inverted: false,
-        brightness: 1.0,
-        contrast: 1.0
-    },
-    blocks: {
-        charsetType: 'blocks',
-        colorMode: 'grayscale',
-        inverted: false,
-        brightness: 1.0,
-        contrast: 1.0
-    },
-    matrix: {
-        charsetType: 'detailed',
-        colorMode: 'grayscale',
-        inverted: true,
-        brightness: 1.3,
-        contrast: 1.4
-    },
-    highContrast: {
-        charsetType: 'detailed',
-        colorMode: 'grayscale',
-        inverted: false,
-        brightness: 1.2,
-        contrast: 1.5
-    },
-    inverted: {
-        charsetType: 'standard',
-        colorMode: 'grayscale',
-        inverted: true,
-        brightness: 1.0,
-        contrast: 1.0
-    }
-};
-
 // Application State
-class ImageAsciiConverter {
+export class ImageAsciiConverter {
     constructor() {
         this.currentImage = null;
         this.currentImageDataUrl = null;
@@ -221,162 +158,7 @@ class ImageAsciiConverter {
 
     setupUI() {
         const app = document.querySelector('#app') || document.body;
-        
-        app.innerHTML = `
-            <div class="app-layout">
-                <!-- Left Sidebar - Controls -->
-                <aside class="sidebar">
-                    <div class="sidebar-header">
-                        <h1 class="logo">🖼️ Image to ASCII</h1>
-                    </div>
-                    
-                    <div class="sidebar-content">
-                        <!-- Upload -->
-                        <div class="panel">
-                            <div class="upload-area" id="upload-area" role="button" tabindex="0" aria-label="Upload image. Press Enter or Space to choose a file.">
-                                <span class="upload-icon">📁</span>
-                                <span>Drop image or click</span>
-                                <input type="file" id="image-input" accept="image/*" hidden>
-                            </div>
-                            <div class="image-preview hidden" id="image-preview">
-                                <img id="preview-img" alt="Preview">
-                                <div class="image-info" id="image-info"></div>
-                            </div>
-                        </div>
-
-                        <!-- Resolution -->
-                        <div class="panel">
-                            <h4 class="panel-title">Resolution</h4>
-                            <select id="resolution-select" class="full-width">
-                                <option value="custom">Custom</option>
-                                <option value="10">10% Scale</option>
-                                <option value="25">25% Scale</option>
-                                <option value="50" selected>50% Scale</option>
-                                <option value="75">75% Scale</option>
-                                <option value="100">100% (Full)</option>
-                            </select>
-                            
-                            <div class="custom-resolution hidden" id="custom-resolution">
-                                <div class="slider-row">
-                                    <label>W: <span id="width-value">${this.settings.width}</span></label>
-                                    <input type="range" id="width-slider" min="${MIN_DIMENSION}" max="${MAX_DIMENSION}" value="${this.settings.width}" step="1">
-                                </div>
-                                <div class="slider-row">
-                                    <label>H: <span id="height-value">${this.settings.height}</span></label>
-                                    <input type="range" id="height-slider" min="${MIN_DIMENSION}" max="${MAX_DIMENSION}" value="${this.settings.height}" step="1">
-                                </div>
-                                <label class="checkbox-inline">
-                                    <input type="checkbox" id="aspect-ratio-checkbox" checked>
-                                    <span>Lock Aspect Ratio</span>
-                                </label>
-                            </div>
-                            
-                            <label class="checkbox-inline">
-                                <input type="checkbox" id="fit-container-checkbox" ${this.settings.fitToContainer ? 'checked' : ''}>
-                                <span>Fit to Container</span>
-                            </label>
-                            <div class="manual-font-controls" id="manual-font-controls" ${this.settings.fitToContainer ? 'style="display:none"' : ''}>
-                                <div class="slider-row">
-                                    <label>Font: <span id="font-size-value">${this.settings.fontSize}</span>px</label>
-                                    <input type="range" id="font-size-slider" min="4" max="20" value="${this.settings.fontSize}" step="1">
-                                </div>
-                                <div class="slider-row">
-                                    <label>Line H: <span id="line-height-value">${this.settings.lineHeight.toFixed(2)}</span></label>
-                                    <input type="range" id="line-height-slider" min="0.5" max="1.5" value="${this.settings.lineHeight}" step="0.05">
-                                </div>
-                            </div>
-                        </div>
-
-                        <!-- Presets -->
-                        <div class="panel">
-                            <h4 class="panel-title">Quick Presets</h4>
-                            <div class="preset-grid">
-                                <button class="preset-btn" data-preset="classic">🟢 Classic</button>
-                                <button class="preset-btn" data-preset="colored">🌈 Colored</button>
-                                <button class="preset-btn" data-preset="blocks">▓ Blocks</button>
-                                <button class="preset-btn" data-preset="matrix">💚 Matrix</button>
-                                <button class="preset-btn" data-preset="highContrast">⚡ Hi-Con</button>
-                                <button class="preset-btn" data-preset="inverted">🔄 Invert</button>
-                            </div>
-                        </div>
-
-                        <!-- Style -->
-                        <div class="panel">
-                            <h4 class="panel-title">Style</h4>
-                            <div class="control-row">
-                                <label>Characters</label>
-                                <select id="charset-select">
-                                    <option value="standard">Standard: .:-=+*#%@</option>
-                                    <option value="detailed">Detailed: .'^:;!i&gt;&lt;~+?</option>
-                                    <option value="blocks">Blocks: ░▒▓█</option>
-                                    <option value="binary">Binary: █</option>
-                                    <option value="dots">Dots: .·:•</option>
-                                    <option value="custom">Custom...</option>
-                                </select>
-                            </div>
-                            <div class="control-row hidden" id="custom-charset-group">
-                                <input type="text" id="custom-charset" placeholder="Custom chars..." maxlength="200">
-                            </div>
-                            <div class="control-row">
-                                <label>Color Mode</label>
-                                <select id="color-mode-select">
-                                    <option value="grayscale">Grayscale</option>
-                                    <option value="ansi">ANSI</option>
-                                    <option value="rgb">RGB</option>
-                                    <option value="full-rgb">Full RGB</option>
-                                </select>
-                            </div>
-                        </div>
-
-                        <!-- Adjustments -->
-                        <div class="panel">
-                            <h4 class="panel-title">Adjustments</h4>
-                            <div class="slider-row">
-                                <label>Brightness: <span id="brightness-value">${this.settings.brightness.toFixed(1)}</span></label>
-                                <input type="range" id="brightness-slider" min="0.5" max="2" value="${this.settings.brightness}" step="0.1">
-                            </div>
-                            <div class="slider-row">
-                                <label>Contrast: <span id="contrast-value">${this.settings.contrast.toFixed(1)}</span></label>
-                                <input type="range" id="contrast-slider" min="0.5" max="2" value="${this.settings.contrast}" step="0.1">
-                            </div>
-                            <div class="checkbox-row">
-                                <label class="checkbox-inline">
-                                    <input type="checkbox" id="invert-checkbox">
-                                    <span>Invert</span>
-                                </label>
-                                <label class="checkbox-inline">
-                                    <input type="checkbox" id="edge-detection-checkbox">
-                                    <span>Edges</span>
-                                </label>
-                            </div>
-                        </div>
-                    </div>
-                </aside>
-
-                <!-- Main Content - Output -->
-                <main class="main-content">
-                    <div class="output-toolbar">
-                        <div class="toolbar-left">
-                            <span class="output-title">ASCII Output</span>
-                        </div>
-                        <div class="toolbar-right">
-                            <button class="tool-btn share-btn" id="share-btn" disabled aria-label="Share ASCII art">🔗 Share</button>
-                            <button class="tool-btn" id="copy-btn" disabled aria-label="Copy to clipboard">📋 Copy</button>
-                            <button class="tool-btn" id="export-txt-btn" disabled aria-label="Export as text file">📄 TXT</button>
-                            <button class="tool-btn" id="export-png-btn" disabled aria-label="Export as PNG image">🖼️ PNG</button>
-                            <button class="tool-btn" id="export-html-btn" disabled aria-label="Export as HTML file">🌐 HTML</button>
-                        </div>
-                    </div>
-                    <div class="ascii-container" id="ascii-output" role="img" aria-label="ASCII art output">
-                        <p class="placeholder">Upload an image to see the ASCII art preview</p>
-                    </div>
-                </main>
-
-                <!-- Toast: aria-live=polite + role=status so screen readers
-                     announce dynamic status messages without interrupting. -->
-                <div class="toast hidden" id="toast" role="status" aria-live="polite"></div>
-            </div>
-        `;
+        app.innerHTML = createUiMarkup(this.settings, { MIN_DIMENSION, MAX_DIMENSION });
     }
 
     setupViewUI() {
@@ -928,114 +710,26 @@ class ImageAsciiConverter {
 
     processImage() {
         return this._getDecodedImage().then((img) => {
-            // Convert-time safety net: regardless of how settings got here
-            // (slider, resolution-%, localStorage, share decode), the canvas
-            // can never exceed MAX_DIMENSION. Tracker C2.
+            // Convert-time safety net: canvas can never exceed MAX_DIMENSION. Tracker C2.
             const width = clampDimension(this.settings.width);
             const height = clampDimension(this.settings.height);
-
-            this.canvas.width = width;
-            this.canvas.height = height;
-
-            // Draw scaled image. This draw + getImageData run synchronously
-            // (no await between them), so concurrent conversions can't read a
-            // half-drawn shared canvas.
-            this.ctx.drawImage(img, 0, 0, img.width, img.height, 0, 0, width, height);
-
-            const imageData = this.ctx.getImageData(0, 0, width, height);
-
-            // Apply edge detection if enabled
-            if (this.settings.edgeDetection) {
-                this.applyEdgeDetection(imageData);
-            }
-
-            return imageData;
+            return drawToImageData({
+                image: img, width, height,
+                canvas: this.canvas, ctx: this.ctx,
+                edgeDetection: this.settings.edgeDetection,
+            });
         });
     }
 
-    applyEdgeDetection(imageData) {
-        return applyEdgeDetection(imageData);
-    }
-
-    adjustBrightnessContrast(r, g, b) {
-        return adjustBrightnessContrast(
-            r, g, b,
-            this.settings.brightness,
-            this.settings.contrast,
-        );
-    }
-
     pixelsToAscii(imageData) {
-        const { width, height } = imageData; // source of truth: actual decoded extent
-        const { colorMode, inverted, charsetType } = this.settings;
-        const pixels = imageData.data;
-
-        // Above the cell budget we still produce text but skip the per-pixel
-        // <span> HTML build — that string would be 150+ MB at 2000x2000 in a
-        // color mode and OOM the tab. renderAscii detects and falls back to
-        // textContent. See MAX_COLOR_CELLS in settings-schema.
-        const buildColor = isColorRenderTractable(width, height, colorMode);
-        const effectiveColorMode = buildColor ? colorMode : 'grayscale';
-        
-        const chars = charsetType === 'custom'
-            ? (this.customChars || charsets.standard)
-            : (charsets[charsetType] || charsets.standard);
-        // Grapheme-aware ramp so emoji custom charsets (surrogate pairs) aren't
-        // split into broken halves on reversal/indexing. See hub-177.
-        const glyphs = prepareGlyphs(chars, inverted);
-
-        // Per-row arrays + join() avoid the O(n²) string-concat blowup
-        // that `text += char` / `html += span` produced inside the nested loop.
-        const textRows = new Array(height);
-        const htmlRows = new Array(height);
-        const colors = new Array(height);
-
-        for (let y = 0; y < height; y++) {
-            const textChars = new Array(width);
-            const htmlParts = new Array(width);
-            const rowColors = new Array(width);
-
-            for (let x = 0; x < width; x++) {
-                const offset = (y * width + x) * 4;
-                let r = pixels[offset];
-                let g = pixels[offset + 1];
-                let b = pixels[offset + 2];
-
-                [r, g, b] = this.adjustBrightnessContrast(r, g, b);
-                const brightness = weightedLuminance(r, g, b);
-                const char = charForBrightness(brightness, glyphs);
-
-                textChars[x] = char;
-
-                // One source of truth for the cell color: the same style object
-                // feeds the <span> here and the PNG-export color buffer, so the
-                // screen and the exported image can't diverge (ANSI included).
-                const style = colorCellStyle(r, g, b, effectiveColorMode);
-                if (style.color) {
-                    const css = style.background
-                        ? `color:${style.color};background:${style.background}`
-                        : `color:${style.color}`;
-                    htmlParts[x] = `<span style="${css}">${escapeHtml(char)}</span>`;
-                    rowColors[x] = style.background
-                        ? { color: style.color, background: style.background }
-                        : { color: style.color };
-                } else {
-                    htmlParts[x] = escapeHtml(char);
-                    rowColors[x] = null;
-                }
-            }
-
-            textRows[y] = textChars.join('');
-            htmlRows[y] = htmlParts.join('');
-            colors[y] = rowColors;
-        }
-
-        // Trailing newline matches the previous `text += '\n'` per-row behavior.
-        return {
-            text: textRows.join('\n') + '\n',
-            html: htmlRows.join('\n') + '\n',
-            colors
-        };
+        return pixelsToAsciiCore(imageData, {
+            colorMode: this.settings.colorMode,
+            inverted: this.settings.inverted,
+            charsetType: this.settings.charsetType,
+            customChars: this.customChars,
+            brightness: this.settings.brightness,
+            contrast: this.settings.contrast,
+        });
     }
 
     renderAscii(asciiContent) {
@@ -1142,7 +836,7 @@ class ImageAsciiConverter {
     }
 
     applyPreset(presetName) {
-        const preset = presets[presetName];
+        const preset = PRESETS[presetName];
         if (!preset) return;
 
         // Apply preset settings
@@ -1173,11 +867,13 @@ class ImageAsciiConverter {
             }, 2000);
         };
 
-        let encoded;
+        let url;
         try {
-            encoded = encodeShare({
+            url = buildShareUrl({
                 settings: this.settings,
                 img: this.currentShareImage,
+                origin: location.origin,
+                pathname: location.pathname,
             });
         } catch (error) {
             console.error('Share encode error:', error);
@@ -1187,8 +883,6 @@ class ImageAsciiConverter {
             this.showToast(friendly, 'error');
             return;
         }
-
-        const url = `${location.origin}${location.pathname}#s=${encoded}`;
 
         if (!navigator.clipboard?.writeText) {
             this.showToast('Clipboard not available — copy the URL from the address bar after navigating to it.', 'error');
@@ -1224,172 +918,32 @@ class ImageAsciiConverter {
 
     exportAsTxt() {
         if (!this.currentAscii) return;
-
-        const blob = new Blob([this.currentAscii.text], { type: 'text/plain;charset=utf-8' });
-        this.downloadBlob(blob, `ascii-art-${Date.now()}.txt`);
+        downloadBlobUtil(exportTxtBlob(this.currentAscii), `ascii-art-${Date.now()}.txt`, document);
         this.showToast('Saved as TXT!', 'success');
     }
 
     exportAsPng() {
         if (!this.currentAscii) return;
-
-        const { fontSize, lineHeight, colorMode } = this.settings;
-        const backgroundColor = '#000000';
-        const textColor = '#00ff00';
-
-        // Create canvas
-        const canvas = document.createElement('canvas');
-        const ctx = canvas.getContext('2d');
-
-        // Set font
-        ctx.font = `${fontSize}px 'Courier New', monospace`;
-
-        // Calculate dimensions
-        const lines = this.currentAscii.text.split('\n').filter(l => l.length > 0);
-
-        // Per-cell advance: constant 'M' width for the built-in monospace charsets
-        // (keeps the hub-174 measure-once fast path), but per-glyph measurement for a
-        // custom charset in a color mode, where emoji are wider than 'M'. hub-1108.
-        const isCustomColor = colorMode !== 'grayscale' && this.settings.charsetType === 'custom';
-        const monoCharWidth = ctx.measureText('M').width;
-        const advanceFor = isCustomColor ? (ch) => ctx.measureText(ch).width : () => monoCharWidth;
-
-        // Size the canvas from the SAME advances we draw with, so a custom charset
-        // can never overflow the right edge or clip.
-        const maxWidth = lines.length > 0
-            ? Math.max(...lines.map((line) => sumAdvances(line, advanceFor)))
-            : 100;
-        const canvasHeight = lines.length * fontSize * lineHeight;
-
-        const targetWidth = maxWidth + 40;
-        const targetHeight = canvasHeight + 40;
-
-        // Conservative cap below the smallest known browser canvas-dimension
-        // limit (Chrome's ~32767px). Above this, canvas.toBlob silently
-        // returns null and the user got an unactionable "PNG export failed"
-        // toast. Refuse upfront with a specific message instead. hub-179.
-        const MAX_CANVAS_DIMENSION = 32000;
-        if (targetWidth > MAX_CANVAS_DIMENSION || targetHeight > MAX_CANVAS_DIMENSION) {
-            this.showToast(
-                'PNG export too large for this browser. Lower the resolution or font size and try again.',
-                'error',
-            );
+        const result = buildPngCanvas(this.currentAscii, this.settings, document);
+        if (result.error) {
+            this.showToast(result.error, 'error');
             return;
         }
-
-        canvas.width = targetWidth;
-        canvas.height = targetHeight;
-
-        // Fill background
-        ctx.fillStyle = backgroundColor;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // Set font again after resize
-        ctx.font = `${fontSize}px 'Courier New', monospace`;
-
-        if (colorMode !== 'grayscale' && this.currentAscii.colors) {
-            // Draw character by character with color. lineToCells iterates by
-            // grapheme (not UTF-16 code unit), so emoji custom charsets stay
-            // whole and each cell's color stays aligned to its grid column.
-            for (let y = 0; y < lines.length; y++) {
-                const cells = lineToCells(lines[y], this.currentAscii.colors[y]);
-                let currentX = 20;
-                const yPos = 20 + (y + 1) * fontSize * lineHeight;
-
-                for (let x = 0; x < cells.length; x++) {
-                    const { char, style } = cells[x];
-                    const adv = advanceFor(char);
-
-                    if (style) {
-                        if (style.background) {
-                            ctx.fillStyle = style.background;
-                            ctx.fillRect(currentX, yPos - fontSize * lineHeight, adv, fontSize * lineHeight);
-                        }
-                        ctx.fillStyle = style.color;
-                    } else {
-                        ctx.fillStyle = textColor;
-                    }
-
-                    ctx.fillText(char, currentX, yPos);
-                    currentX += adv;
-                }
-            }
-        } else {
-            // Draw grayscale
-            ctx.fillStyle = textColor;
-            lines.forEach((line, index) => {
-                ctx.fillText(line, 20, 20 + (index + 1) * fontSize * lineHeight);
-            });
-        }
-
-        // Download
-        canvas.toBlob((blob) => {
+        result.canvas.toBlob((blob) => {
             if (!blob) {
                 this.showToast('PNG export failed', 'error');
                 return;
             }
-            this.downloadBlob(blob, `ascii-art-${Date.now()}.png`);
+            downloadBlobUtil(blob, `ascii-art-${Date.now()}.png`, document);
             this.showToast('Saved as PNG!', 'success');
         });
     }
 
     exportAsHtml() {
         if (!this.currentAscii) return;
-
-        const { fontSize, lineHeight } = this.settings;
-        const imageName = escapeHtml(this.currentImage?.name || 'ASCII Art');
-
-        const html = `<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>${imageName} - ASCII Art</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            background: #0a0a0a;
-            display: flex;
-            justify-content: center;
-            padding: 40px 20px;
-            min-height: 100vh;
-        }
-        .ascii-container {
-            background: #000;
-            color: #00ff00;
-            font-family: 'Courier New', monospace;
-            font-size: ${fontSize}px;
-            line-height: ${lineHeight};
-            white-space: pre;
-            padding: 30px;
-            border: 2px solid #333;
-            border-radius: 12px;
-            box-shadow: 0 0 30px rgba(0, 255, 0, 0.1);
-            overflow: auto;
-            max-width: 100%;
-        }
-    </style>
-</head>
-<body>
-    <pre class="ascii-container">${this.currentAscii.html || escapeHtml(this.currentAscii.text)}</pre>
-</body>
-</html>`;
-
-        const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
-        this.downloadBlob(blob, `ascii-art-${Date.now()}.html`);
+        const blob = exportHtmlBlob(this.currentAscii, this.settings, this.currentImage?.name);
+        downloadBlobUtil(blob, `ascii-art-${Date.now()}.html`, document);
         this.showToast('Saved as HTML!', 'success');
-    }
-
-    downloadBlob(blob, filename) {
-        const url = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = filename;
-        a.click();
-        // Defer revoke so the download latches onto the URL first. Some
-        // browsers (older Safari, certain Firefox configurations) cancel
-        // the save if the URL is revoked synchronously after click().
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
     }
 
     // Single source of truth for writing a width/height. Clamps the requested
@@ -1450,6 +1004,11 @@ class ImageAsciiConverter {
     }
 }
 
-// Initialize the application
-new ImageAsciiConverter();
+// Auto-start only in a real browser. Under Vitest, NODE_ENV is 'test' and the
+// class is imported + instantiated explicitly with a controlled DOM. `process`
+// is undefined in the browser, so the typeof guard is browser-safe. hub-1105.
+const __isTestEnv = typeof process !== 'undefined' && process.env && process.env.NODE_ENV === 'test';
+if (!__isTestEnv) {
+    new ImageAsciiConverter();
+}
 
