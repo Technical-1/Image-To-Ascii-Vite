@@ -13,7 +13,7 @@
 ## Frontend
 
 - **Framework**: None (vanilla JavaScript)
-- **Architecture**: Single `ImageAsciiConverter` class with DOM-based UI generation
+- **Architecture**: An `ImageAsciiConverter` orchestrator class that owns state and DOM wiring, delegating conversion, export, sharing, and markup to focused DOM-free modules
 - **State Management**: Class properties with localStorage persistence
 - **Styling**: CSS custom properties (CSS variables) for theming, flexbox layout
 - **Build Tool**: Vite 8 with ES module support
@@ -67,7 +67,8 @@ The `vercel.json` file configures:
 | Package | Version | Purpose |
 |---------|---------|---------|
 | `vite` | ^8.0.14 | Build tool and development server |
-| `vitest` | ^4.1.7 | Unit-test runner for the pure modules |
+| `vitest` | ^4.1.7 | Test runner — unit tests for the pure modules plus jsdom characterization tests for the UI orchestrator |
+| `jsdom` | ^29.1.1 | DOM environment for the characterization tests (settings restore, view-mode share, convert pipeline, export-button lifecycle) |
 
 ### Why Zero Runtime Dependencies?
 

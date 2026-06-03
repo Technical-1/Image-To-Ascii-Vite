@@ -104,9 +104,25 @@ sequenceDiagram
 ## Component Descriptions
 
 ### ImageAsciiConverter Class (`src/script.js`)
-- **Purpose**: Core application logic — image processing, ASCII conversion, UI setup, event handling, export functionality
-- **Key responsibilities**: File upload handling, Canvas-based pixel extraction, Sobel edge detection, brightness/contrast adjustment, grayscale luminance calculation, character mapping, color mode rendering (Grayscale/ANSI/RGB/Full RGB), auto-fit font sizing, settings persistence via localStorage, share/copy/export operations
-- **Pattern**: Single class with state management, debounced conversion, and DOM-based UI generation
+- **Purpose**: Stateful UI orchestrator — owns the current image, settings, caches, and all DOM event wiring, and delegates the heavy lifting to the pure modules below
+- **Key responsibilities**: File upload handling and validation, debounced conversion with ordering guards, auto-fit font sizing, settings persistence via localStorage, and wiring the share/copy/export controls
+- **Pattern**: A single stateful class around DOM-free function modules (the same pattern `ascii-core.js` established), so each concern is independently testable
+
+### Image Processor (`src/image-processor.js`)
+- **Purpose**: Pure image→ASCII compute, lifted out of the UI class so it is unit-testable directly
+- **Key responsibilities**: Draw the decoded image to the canvas at the clamped target size and read back pixels (`drawToImageData`), and convert an RGBA buffer to `{ text, html, colors }` (`pixelsToAscii`) including the color-budget grayscale fallback; owns the character-set table
+
+### Export Manager (`src/export-manager.js`)
+- **Purpose**: Build downloadable artifacts from a converted result
+- **Key responsibilities**: TXT and standalone-HTML blobs, the PNG canvas (with the per-cell advance model so non-monospace charsets don't overflow, and the browser canvas-size guard), and the deferred-revoke download helper
+
+### Share Manager (`src/share-manager.js`)
+- **Purpose**: Construct the self-contained share URL
+- **Key responsibilities**: Combine origin/path with the `share-codec` payload into the `#s=` link; clipboard and button UX stay in the orchestrator
+
+### UI Manager (`src/ui-manager.js`)
+- **Purpose**: Pure create-mode markup builder plus the style presets
+- **Key responsibilities**: Return the create-mode HTML string from the current settings (no DOM access, so the markup is assertable in tests) and own the `PRESETS` table
 
 ### Share Codec (`src/share-codec.js`)
 - **Purpose**: Client-side encode/decode of share payloads into URL fragments (`#s=`)
@@ -168,12 +184,24 @@ Rather than requiring users to manually set font sizes, the "Fit to Container" m
 ### 8. Ordering Guarantees for an Async, Debounced Pipeline
 Conversion is async (it awaits an image decode) and is driven by debounced slider input, so a newer conversion can start before an older one finishes. Without a guard, a slow earlier decode can resolve *after* a faster later one and overwrite the fresh output with stale art. Each run captures a monotonic `_convertToken` and bails after the await if a newer run has superseded it — the same pattern the upload path uses to drop late `FileReader`/`Image` callbacks. Separately, every debounce used to re-decode the full-resolution source (up to the 50 MB upload limit) before drawing the small ASCII canvas; `_getDecodedImage` now caches the decoded `Image` keyed by its data URL, so re-decoding happens only when the source image actually changes.
 
+### 9. Focused Modules Around a Stateful Orchestrator
+The conversion, export, share-URL, and markup logic started life inside one large class. I split them into DOM-free function modules (`image-processor.js`, `export-manager.js`, `share-manager.js`, `ui-manager.js`) following the pattern `ascii-core.js` already set, leaving `ImageAsciiConverter` as a thin stateful orchestrator that owns the image, settings, caches, and event wiring.
+- **Testability**: `pixelsToAscii` is now imported and asserted directly instead of being reachable only through the DOM. The orchestrator itself gained jsdom characterization tests (settings restore, view-mode share decoding, the convert pipeline, and the export-button enable/disable lifecycle) backed by a small canvas stub — the UI layer had no automated coverage before
+- **Boundaries**: Each module takes explicit arguments and returns plain data (blobs, a `{ text, html, colors }` object, a URL string), so the orchestrator stays the single owner of state and DOM
+
+### 10. Validating Uploads at the Boundary
+The upload path accepts raster images and rejects SVG up front — it has no reliable intrinsic raster size and is a known canvas/`Image()` attack surface, and the share codec already excludes it, so the two boundaries now match. It also rejects any decode that reports zero intrinsic dimensions before showing a success state, so a malformed file fails with one clear message instead of a misleading "loaded" toast followed by a draw-time error. Custom character sets are capped by code point rather than UTF-16 code unit, so the cap can never truncate mid-emoji and leave a broken half-glyph.
+
 ## Component Responsibilities
 
 | Component | Responsibility |
 |-----------|---------------|
 | `index.html` | Entry point, critical CSS, loading state |
-| `src/script.js` | ImageAsciiConverter class — all conversion and UI logic |
+| `src/script.js` | ImageAsciiConverter — stateful UI orchestrator |
+| `src/image-processor.js` | Canvas draw + `pixelsToAscii` ({text, html, colors}); charset table |
+| `src/export-manager.js` | TXT / HTML / PNG artifact builders + download helper |
+| `src/share-manager.js` | Builds the `#s=` share URL |
+| `src/ui-manager.js` | Create-mode markup builder + style presets |
 | `src/ascii-core.js` | Pure conversion algorithms (shared with the test suite) |
 | `src/share-codec.js` | URL share payload codec (encode/decode `#s=` fragment) |
 | `src/settings-schema.js` | Settings schema, defaults, clamp/validate, render-budget constants |

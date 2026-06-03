@@ -25,8 +25,8 @@ The `pixelsToAscii` method generates both plain text and colored HTML in a singl
 ### Auto-Fit Font Sizing
 The "Fit to Container" feature calculates the optimal font size by dividing available viewport dimensions by the ASCII grid dimensions (accounting for monospace character width ratio of ~0.6). This ensures the output always fills the screen regardless of resolution settings or window size.
 
-### Class-Based Architecture
-I refactored the original module-scoped functions into an `ImageAsciiConverter` class. This encapsulates all state (current image, settings, debounce timer) and provides clean separation between image processing, UI management, and export functionality. Settings persist via localStorage with a defaults-merge pattern.
+### Orchestrator Around Pure Modules
+`ImageAsciiConverter` is a thin stateful orchestrator — it owns the current image, settings, caches, and DOM event wiring, and delegates the actual work to DOM-free modules: `image-processor.js` (canvas draw + `pixelsToAscii`), `export-manager.js` (TXT/HTML/PNG builders), `share-manager.js` (share URL), and `ui-manager.js` (markup). Because the modules take explicit arguments and return plain data, `pixelsToAscii` is unit-tested directly, and the orchestrator itself is covered by jsdom characterization tests (settings restore, view-mode share decode, the convert pipeline, and the export-button lifecycle) backed by a small canvas stub. Settings persist via localStorage with a defaults-merge pattern.
 
 ### Client-Side URL Share System
 The share feature encodes the downscaled source image plus settings into the URL fragment using a small pure codec (`src/share-codec.js`): base64url of a JSON `{ v, settings, img: data:image/png;base64,… }`. Because it's a fragment, it never reaches any server. Opening the link puts the same SPA into a read-only view mode that re-runs the shared deterministic pipeline (`src/ascii-core.js`) to regenerate identical output. The codec hardens the untrusted-input boundary with a raster-only data-URI allowlist (no SVG), size and structural guards, and an injected `sanitizeSettings` clamp.
@@ -81,10 +81,13 @@ I implemented a Sobel filter — a classic image processing technique that uses 
 Yes! The app supports four color modes. RGB and Full RGB modes produce colored HTML output that preserves in the PNG and HTML exports. The copy-to-clipboard function outputs plain text regardless of color mode, since terminal/text contexts don't support inline colors.
 
 ### Will the exported PNG look exactly like the preview?
-Yes. The on-screen renderer and the canvas PNG exporter resolve each cell's color and glyph through the same pure helpers (`colorCellStyle` and `lineToCells`), so they can't drift. That matters most in two cases: ANSI mode exports the same quantized 6×6×6 cube color it shows on screen (not the raw pixel color), and emoji custom charsets stay whole and color-aligned in the PNG because lines are split by grapheme rather than by UTF-16 code unit.
+Yes. The on-screen renderer and the canvas PNG exporter resolve each cell's color and glyph through the same pure helpers (`colorCellStyle` and `lineToCells`), so they can't drift. That matters most in two cases: ANSI mode exports the same quantized 6×6×6 cube color it shows on screen (not the raw pixel color), and emoji custom charsets stay whole and color-aligned in the PNG because lines are split by grapheme rather than by UTF-16 code unit — and for a non-monospace custom charset the exporter measures each glyph's width and sizes the canvas from the same advances it draws with, so wide emoji cells don't overlap or clip.
 
 ### Why did you choose vanilla JavaScript over a framework?
 The application has a single view with straightforward state management. A framework would add bundle size and complexity without meaningful benefit. The `ImageAsciiConverter` class provides clean organization, and the total client-side JavaScript stays extremely lightweight.
+
+### Which image formats can I upload?
+Raster formats the browser can decode — PNG, JPG/JPEG, GIF (first frame), BMP, and WEBP. SVG is intentionally rejected: it has no reliable intrinsic pixel size and is a known canvas/`Image()` attack surface, and the share codec already refuses non-raster data URIs, so the upload boundary matches it. A file that decodes to zero dimensions is rejected with a clear message rather than failing later during canvas drawing.
 
 ### Can I convert animated GIFs?
 The converter extracts a single frame from GIFs. Full animation support would require significantly more complex handling and larger output. This could be a future enhancement.
@@ -93,7 +96,7 @@ The converter extracts a single frame from GIFs. Full animation support would re
 All modern browsers (Chrome 90+, Firefox 88+, Safari 14+, Edge 90+) are supported. The application uses standard Web APIs (Canvas, Clipboard, localStorage, ES modules) without polyfills.
 
 ### Can I use emoji or other multi-byte characters in custom character sets?
-Yes. The character-ramp pipeline iterates with `Array.from`, which is grapheme-aware, so each emoji (or other surrogate-pair glyph) is treated as a single character instead of being split into two broken halves. You can paste a string like `🎨🔥💎` into the custom charset input and the brightness ramp will use one emoji per stop.
+Yes. The character-ramp pipeline iterates with `Array.from`, which is grapheme-aware, so each emoji (or other surrogate-pair glyph) is treated as a single character instead of being split into two broken halves. You can paste a string like `🎨🔥💎` into the custom charset input and the brightness ramp will use one emoji per stop. The 200-character cap on custom sets is applied by code point too, so it can't truncate mid-emoji and leave a broken half-glyph.
 
 ### Is the app accessible to screen-reader and keyboard users?
 Yes on both counts. The upload area is exposed as `role="button"` with `tabindex="0"` and an `aria-label`, and it responds to Enter and Space — so a keyboard-only user can Tab to it and trigger the file picker without ever touching the mouse. All toolbar buttons have `aria-label` attributes, the ASCII output container has `role="img"` with a descriptive label, and the toast notification element uses `role="status"` with `aria-live="polite"` so status messages like "Image loaded", "Saved as PNG!", and error toasts are announced as they appear.

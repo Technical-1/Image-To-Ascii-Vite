@@ -8,7 +8,7 @@ Upload any image and customize the output with adjustable resolution, brightness
 
 ## Features
 
-- **Universal Image Support** - Works with PNG, JPG, JPEG, GIF, BMP, WEBP, and SVG files
+- **Raster Image Support** - Works with PNG, JPG, JPEG, GIF, BMP, and WEBP files (SVG is intentionally rejected — it has no reliable intrinsic raster size and is a known canvas attack surface)
 - **Real-time Preview** - See ASCII art update instantly as you adjust any setting (150ms debounce)
 - **Color Modes** - Grayscale, ANSI 256-color, RGB per-character, and Full RGB with background tinting
 - **Edge Detection** - Sobel filter for emphasizing outlines and contours
@@ -25,8 +25,9 @@ Upload any image and customize the output with adjustable resolution, brightness
 
 ## Tech Stack
 
-- **Frontend**: Vanilla JavaScript (ES6+), HTML5 Canvas API, CSS3
+- **Frontend**: Vanilla JavaScript (ES6+), HTML5 Canvas API, CSS3 — a stateful UI orchestrator around DOM-free conversion/export/share modules
 - **Build Tool**: Vite 8
+- **Testing**: Vitest 4 — unit tests for the pure modules plus jsdom characterization tests for the orchestrator
 - **Hosting**: Vercel with global CDN
 - **Sharing**: URL-fragment encoded (no backend)
 
@@ -102,15 +103,23 @@ Image-To-Ascii-Vite/
 │   ├── favicon.svg                    # Scalable favicon (primary)
 │   └── og-image.png                   # Open Graph / social preview image
 ├── src/
-│   ├── script.js           # ImageAsciiConverter class — UI + conversion driver
+│   ├── script.js           # ImageAsciiConverter — stateful UI orchestrator
 │   ├── ascii-core.js       # Pure DOM-free conversion algorithms (shared with tests)
+│   ├── image-processor.js  # Canvas draw + pixels→ASCII ({text, html, colors})
+│   ├── export-manager.js   # TXT / HTML / PNG artifact builders + downloads
+│   ├── share-manager.js    # Builds the self-contained share URL
+│   ├── ui-manager.js       # Create-mode markup builder + style presets
 │   ├── share-codec.js      # URL-fragment share payload encode/decode
 │   ├── settings-schema.js  # Settings schema, defaults, and clamp/validate
 │   └── style.css           # Full application styles with responsive breakpoints
 ├── tests/
-│   ├── ascii-conversion.test.js  # Vitest unit tests for ascii-core algorithms
-│   ├── settings-schema.test.js   # Sanitize/clamp contract tests
-│   └── share-codec.test.js       # Encode/decode round-trip + hostile-input tests
+│   ├── ascii-conversion.test.js            # Unit tests for ascii-core algorithms
+│   ├── image-processor.test.js             # Pixels→ASCII conversion tests
+│   ├── settings-schema.test.js             # Sanitize/clamp contract tests
+│   ├── share-codec.test.js                 # Encode/decode round-trip + hostile-input tests
+│   ├── ui-manager.test.js                  # Markup builder tests
+│   ├── converter.characterization.test.js  # jsdom characterization tests for the orchestrator
+│   └── helpers/                            # Canvas + localStorage stubs for the jsdom tests
 ```
 
 ## License
